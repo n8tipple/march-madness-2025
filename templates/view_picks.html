@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-primary mb-4">View Picks for Closed Rounds</h2>
+{% for round in closed_rounds %}
+    <div class="mb-4">
+        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#round{{ round.id }}"
+            aria-expanded="false" aria-controls="round{{ round.id }}">
+            {{ round.name }}{% if round.name == 'Championship' %} (Wager-Based){% else %} (Point Value: {{ round.point_value }}){% endif %}
+        </button>
+        <div class="collapse" id="round{{ round.id }}">
+            <div class="row mt-3">
+                {% for game in round.games %}
+                    <div class="col-md-6">
+                        <div class="card mb-3 shadow-sm">
+                            <div class="card-header bg-dark text-white">
+                                <h5>{{ game.team1 }} vs {{ game.team2 }}</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Winner:</strong> {{ game.winner if game.winner else 'Not set' }}</p>
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>Pick</th>
+                                            <th>Points</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for pick in game.picks %}
+                                        <tr class="{{ 'table-success' if pick.picked_team == game.winner else 'table-danger' if game.winner else '' }}">
+                                            <td>{{ pick.user.username }}</td>
+                                            <td>{{ pick.picked_team }}</td>
+                                            <td>
+                                                {% if game.winner %}
+                                                    {% if pick.picked_team == game.winner %}
+                                                        {% if round.name == 'Championship' %}
+                                                            {{ pick.wager }}
+                                                        {% else %}
+                                                            {{ round.point_value }}
+                                                        {% endif %}
+                                                    {% elif round.name == 'Championship' %}
+                                                        -{{ pick.wager }}
+                                                    {% else %}
+                                                        0
+                                                    {% endif %}
+                                                {% else %}
+                                                    0
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                        {% if not game.picks %}
+                                            <tr><td colspan="3" class="text-muted">No picks made</td></tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endfor %}
+{% endblock %}

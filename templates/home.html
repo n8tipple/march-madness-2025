@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Welcome to March Madness Organizer</h2>
+{% if current_round %}
+    <p>Current Round: {{ current_round.name }}</p>
+    <a href="{{ url_for('pick') }}" class="btn btn-primary">Make Picks</a>
+    <a href="{{ url_for('leaderboard') }}" class="btn btn-secondary">View Leaderboard</a>
+    {% if current_user.is_admin %}
+        <a href="{{ url_for('admin') }}" class="btn btn-danger">Admin Panel</a>
+    {% endif %}
+{% else %}
+    <p>No current round. Check back later.</p>
+{% endif %}
+{% endblock %}

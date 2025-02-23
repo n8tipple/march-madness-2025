@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-primary mb-4">Leaderboard</h2>
+<canvas id="leaderboardChart" style="margin-bottom: 100px;"></canvas>
+
+<!-- Modal for Image Popup -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="width: 770px; height: 820px; padding: 10px;">
+            <div class="modal-header" style="padding: 5px;">
+                <h5 class="modal-title" id="imageModalLabel" style="font-size: 14px;"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="padding: 2px;"></button>
+            </div>
+            <div class="modal-body" style="padding: 0;">
+                <img id="modalImage" src="" alt="User Image" style="width: 750px; height: 750px;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const users = [
+            {% for user in users %}
+                { username: "{{ user.username }}", points: {{ user.points }}, image: "{{ url_for('static', filename=user.username.lower() + '.png') }}", funName: "{{ user.fun_name }}" }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        users.sort((a, b) => b.points - a.points);
+
+        const labels = users.map(user => ''); // Empty labels for bars
+        const data = users.map(user => user.points);
+        const images = users.map(user => user.image);
+
+        if (users.length === 0) {
+            labels.push('');
+            data.push(0);
+            images.push("{{ url_for('static', filename='default.png') }}");
+        }
+
+        const maxPoints = Math.max(...data, 0);
+        const yAxisMax = Math.ceil((maxPoints + 50) / 50) * 50; // Max points + 50, rounded up to nearest 50
+
+        const ctx = document.getElementById('leaderboardChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Points',
+                    data: data,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: yAxisMax,
+                        title: { display: true, text: 'Points' }
+                    },
+                    x: {
+                        title: { display: false }, // No "Users" label
+                        ticks: { display: false } // Hide default ticks
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        formatter: function(value) {
+                            return value;
+                        },
+                        font: {
+                            weight: 'bold'
+                        }
+                    }
+                },
+                hover: {
+                    mode: null
+                },
+                events: ['click'],
+                layout: {
+                    padding: {
+                        bottom: 100 // Extra space below plot
+                    }
+                }
+            },
+            plugins: [ChartDataLabels, {
+                afterDatasetsDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    const xAxis = chart.scales.x;
+                    const yAxis = chart.scales.y;
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.font = '12px Arial';
+                    ctx.fillStyle = '#000000'; // Black text
+
+                    // Clear the area below the plot to prevent overlapping text
+                    ctx.clearRect(0, yAxis.bottom, chart.width, chart.height - yAxis.bottom);
+
+                    users.forEach((user, index) => {
+                        const x = xAxis.getPixelForTick(index);
+                        const y = yAxis.bottom + 10;
+
+                        // Draw image
+                        const img = new Image();
+                        img.src = images[index];
+                        img.onload = function() {
+                            ctx.drawImage(img, x - 25, y, 50, 50);
+                        };
+                        ctx.drawImage(img, x - 25, y, 50, 50); // Draw immediately if cached
+
+                        // Draw username below image
+                        ctx.fillText(user.username, x, y + 60);
+                        // Draw fun name below username
+                        ctx.fillText(user.funName, x, y + 75);
+
+                        // Store click data immediately
+                        chart.data.datasets[0].data[index] = {
+                            x: x - 25,
+                            y: y,
+                            width: 50,
+                            height: 50,
+                            user: user
+                        };
+                    });
+                    ctx.restore();
+                }
+            }]
+        });
+
+        document.getElementById('leaderboardChart').addEventListener('click', function(event) {
+            const rect = chart.canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const dataset = chart.data.datasets[0].data;
+            for (let i = 0; i < dataset.length; i++) {
+                const imgData = dataset[i];
+                if (imgData && x >= imgData.x && x <= imgData.x + imgData.width && 
+                    y >= imgData.y && y <= imgData.y + imgData.height) {
+                    document.getElementById('modalImage').src = imgData.user.image;
+                    document.getElementById('imageModalLabel').textContent = `${imgData.user.username} (${imgData.user.funName})`;
+                    const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+                    modal.show();
+                    break;
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
