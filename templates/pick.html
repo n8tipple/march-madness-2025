@@ -41,7 +41,7 @@
     <div class="mb-3">
         <label for="wager" class="form-label">Wager (Max: {{ current_user.points }})</label>
         <input type="number" class="form-control" id="wager" name="wager" min="0" max="{{ current_user.points }}"
-            value="{% if existing_picks and existing_picks|length > 0 %}{{ existing_picks.values()|first.wager }}{% else %}0{% endif %}">
+            value="{% if existing_picks and existing_picks|length > 0 %}{{ existing_picks[list(existing_picks.keys())[0]].wager }}{% else %}0{% endif %}">
     </div>
     {% endif %}
     <button type="submit" class="btn btn-primary">Submit Picks</button>
