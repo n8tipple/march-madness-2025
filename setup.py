@@ -19,7 +19,7 @@ with app.app_context():
         ('Sherry', 'pass48', False, 'Swish Sherry'),
         ('Tyler', 'hoop23', False, 'Triple-Double Tyler'),
         ('Nico', 'slam96', False, 'Net-Rippin’ Nico'),
-        ('Sid', 'ball71', False, 'Stealth Sid')
+        ('Sid', 'ball71', False, 'Sideline Sid')
     ]
 
     # Create users with specified passwords and fun names
