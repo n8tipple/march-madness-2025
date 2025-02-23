@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
@@ -5,13 +6,15 @@ from flask_bcrypt import Bcrypt
 
 app = Flask(__name__)
 
+# Load the secret key from a file
 try:
     with open('secret_key.txt', 'r') as f:
         app.config['SECRET_KEY'] = f.read().strip()
 except FileNotFoundError:
     raise Exception("Error: secret_key.txt not found in project directory. Please create it with a secure key.")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres.klggxmynqzhtoxoalngl:U@FTA_mZhava.6y@aws-0-us-west-1.pooler.supabase.com:6543/postgres'
+# Use environment variable for database URI, with SQLite as fallback
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///mm2025.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
