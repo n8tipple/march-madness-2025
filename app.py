@@ -11,7 +11,7 @@ try:
 except FileNotFoundError:
     raise Exception("Error: secret_key.txt not found in project directory. Please create it with a secure key.")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mm2025.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:U@FTA_mZhava.6y@db.klggxmynqzhtoxoalngl.supabase.co:5432/postgres'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -168,15 +168,6 @@ def admin():
         if round_id:
             selected_round = Round.query.get(round_id)
             if selected_round:
-                if 'delete_round' in request.form:
-                    if selected_round.name == 'First Round (Round of 64)':
-                        flash('Cannot delete the First Round', 'error')
-                    else:
-                        db.session.delete(selected_round)
-                        db.session.commit()
-                        flash(f'{selected_round.name} deleted successfully', 'success')
-                        return redirect(url_for('admin'))
-                
                 for game in selected_round.games:
                     winner = request.form.get(f'game{game.id}_winner')
                     if selected_round.name == 'First Round (Round of 64)':
@@ -300,4 +291,5 @@ def create_next_round(current_round):
             db.session.add(Game(round_id=next_round.id, team1=team1, team2=team2))
     db.session.commit()
 
+# Export Flask app for Vercel
 app = app
