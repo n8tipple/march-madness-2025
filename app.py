@@ -11,7 +11,7 @@ try:
 except FileNotFoundError:
     raise Exception("Error: secret_key.txt not found in project directory. Please create it with a secure key.")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:U@FTA_mZhava.6y@db.klggxmynqzhtoxoalngl.supabase.co:5432/postgres'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres.klggxmynqzhtoxoalngl:U@FTA_mZhava.6y@aws-0-us-west-1.pooler.supabase.com:6543/postgres'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
