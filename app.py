@@ -300,5 +300,4 @@ def create_next_round(current_round):
             db.session.add(Game(round_id=next_round.id, team1=team1, team2=team2))
     db.session.commit()
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+app = app
