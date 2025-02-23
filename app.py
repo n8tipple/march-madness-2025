@@ -6,14 +6,12 @@ from flask_bcrypt import Bcrypt
 
 app = Flask(__name__)
 
-# Load the secret key from a file
 try:
     with open('secret_key.txt', 'r') as f:
         app.config['SECRET_KEY'] = f.read().strip()
 except FileNotFoundError:
     raise Exception("Error: secret_key.txt not found in project directory. Please create it with a secure key.")
 
-# Use environment variable for database URI, with SQLite as fallback
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///mm2025.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -114,30 +112,52 @@ def pick():
         prev_winners = [game.winner for game in prev_round.games if game.winner] if prev_round else []
 
     if request.method == 'POST':
-        for pick in picks:
-            db.session.delete(pick)
-        db.session.commit()
-        for game in games:
-            picked_team = request.form.get(f'game{game.id}')
-            if not picked_team or picked_team not in [game.team1, game.team2]:
-                flash('Invalid or missing selection for a game.', 'danger')
-                db.session.rollback()
-                return redirect(url_for('pick'))
-            pick = Pick(user_id=current_user.id, game_id=game.id, picked_team=picked_team)
-            if current_round.name == 'Championship':
-                try:
-                    wager = int(request.form.get('wager', 0))
-                    if wager < 0:
-                        wager = 0
-                    if wager > current_user.points:
-                        wager = current_user.points
-                    pick.wager = wager
-                except ValueError:
-                    pick.wager = 0
-            db.session.add(pick)
-        db.session.commit()
-        flash('Picks submitted successfully!', 'success')
-        return redirect(url_for('home'))
+        try:
+            for game in games:
+                picked_team = request.form.get(f'game{game.id}')
+                if not picked_team or picked_team not in [game.team1, game.team2]:
+                    flash('Invalid or missing selection for a game.', 'danger')
+                    db.session.rollback()
+                    return redirect(url_for('pick'))
+
+                # Check if pick exists
+                existing_pick = existing_picks.get(game.id)
+                if existing_pick:
+                    # Update existing pick
+                    existing_pick.picked_team = picked_team
+                    if current_round.name == 'Championship':
+                        try:
+                            wager = int(request.form.get('wager', existing_pick.wager))  # Default to current wager
+                            if wager < 0:
+                                wager = 0
+                            if wager > current_user.points:
+                                wager = current_user.points
+                            existing_pick.wager = wager
+                        except ValueError:
+                            existing_pick.wager = existing_pick.wager  # Keep existing wager on error
+                else:
+                    # Create new pick
+                    pick = Pick(user_id=current_user.id, game_id=game.id, picked_team=picked_team)
+                    if current_round.name == 'Championship':
+                        try:
+                            wager = int(request.form.get('wager', 0))
+                            if wager < 0:
+                                wager = 0
+                            if wager > current_user.points:
+                                wager = current_user.points
+                            pick.wager = wager
+                        except ValueError:
+                            pick.wager = 0
+                    db.session.add(pick)
+
+            db.session.commit()
+            flash('Picks submitted successfully!', 'success')
+            return redirect(url_for('home'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error saving picks: {str(e)}', 'danger')
+            return redirect(url_for('pick'))
+
     return render_template('pick.html', games=games, existing_picks=existing_picks, current_round=current_round, prev_winners=prev_winners if current_round.name != 'First Round (Round of 64)' else None)
 
 @app.route('/view_picks')
