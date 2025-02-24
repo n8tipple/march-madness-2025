@@ -120,23 +120,20 @@ def pick():
                     db.session.rollback()
                     return redirect(url_for('pick'))
 
-                # Check if pick exists
                 existing_pick = existing_picks.get(game.id)
                 if existing_pick:
-                    # Update existing pick
                     existing_pick.picked_team = picked_team
                     if current_round.name == 'Championship':
                         try:
-                            wager = int(request.form.get('wager', existing_pick.wager))  # Default to current wager
+                            wager = int(request.form.get('wager', existing_pick.wager))
                             if wager < 0:
                                 wager = 0
                             if wager > current_user.points:
                                 wager = current_user.points
                             existing_pick.wager = wager
                         except ValueError:
-                            existing_pick.wager = existing_pick.wager  # Keep existing wager on error
+                            existing_pick.wager = existing_pick.wager
                 else:
-                    # Create new pick
                     pick = Pick(user_id=current_user.id, game_id=game.id, picked_team=picked_team)
                     if current_round.name == 'Championship':
                         try:
@@ -151,6 +148,17 @@ def pick():
                     db.session.add(pick)
 
             db.session.commit()
+
+            # Recalculate scores for all closed rounds
+            closed_rounds = Round.query.filter_by(closed=True).all()
+            if closed_rounds:
+                users = User.query.all()
+                for user in users:
+                    user.points = 0  # Reset points
+                for round in closed_rounds:
+                    calculate_points(round)
+                db.session.commit()
+
             flash('Picks submitted successfully!', 'success')
             return redirect(url_for('home'))
         except Exception as e:
@@ -256,6 +264,16 @@ def admin():
                 flash(f'{selected_round.name} saved successfully', 'success')
         return redirect(url_for('admin', round_id=selected_round_id))
     
+    # Recalculate scores for all closed rounds on GET
+    closed_rounds = Round.query.filter_by(closed=True).all()
+    if closed_rounds:
+        users = User.query.all()
+        for user in users:
+            user.points = 0  # Reset points
+        for round in closed_rounds:
+            calculate_points(round)
+        db.session.commit()
+
     prev_round = None
     if selected_round and selected_round.name != 'First Round (Round of 64)':
         round_names = ['First Round (Round of 64)', 'Second Round (Round of 32)', 'Sweet 16', 'Elite Eight', 'Final Four', 'Championship']
@@ -279,6 +297,16 @@ def admin():
 
 @app.route('/leaderboard')
 def leaderboard():
+    # Recalculate scores for all closed rounds
+    closed_rounds = Round.query.filter_by(closed=True).all()
+    if closed_rounds:
+        users = User.query.all()
+        for user in users:
+            user.points = 0  # Reset points
+        for round in closed_rounds:
+            calculate_points(round)
+        db.session.commit()
+
     users = User.query.order_by(User.points.desc()).all()
     return render_template('leaderboard.html', users=users)
 
