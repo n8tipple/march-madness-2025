@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
         body { padding: 20px; background-color: #f8f9fa; font-family: 'Arial', sans-serif; }
-        .navbar-brand { font-weight: bold; color: #007bff; }
+        .navbar-brand { font-weight: bold; color: #007bff; padding-left: 15px; } /* Moved right with padding */
         .navbar { box-shadow: 0 2px 4px rgba(0,0,0,.1); }
         .alert { margin-top: 20px; border-radius: 8px; animation: fadeIn 0.5s; }
         #leaderboardChart { max-height: 400px; margin: 20px 0; }
@@ -18,11 +18,29 @@
         .btn { border-radius: 5px; transition: all 0.3s; }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,.2); }
         .modal-header .btn-close { padding: 0.5rem; }
-        .navbar .navbar-nav .nav-link { color: #007bff; }
-        .navbar .navbar-nav .nav-link:hover { color: #0056b3; }
-        .navbar .navbar-text { color: #333; }
+        .navbar .btn-outline-primary, .navbar .btn-outline-danger { margin: 0 5px; }
+        .navbar .btn-info { color: #fff; background-color: #17a2b8; border-color: #17a2b8; margin: 0 5px; }
+        .navbar .btn-info:hover { background-color: #138496; border-color: #117a8b; transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+        .navbar .btn-outline-primary.active, .navbar .btn-outline-danger.active {
+            background-color: #007bff; /* Filled background for active primary buttons */
+            color: #fff;
+            border-color: #007bff;
+        }
+        .navbar .btn-outline-danger.active {
+            background-color: #dc3545; /* Filled background for active danger buttons */
+            color: #fff;
+            border-color: #dc3545;
+        }
         .table-responsive { overflow-x: auto; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @media (max-width: 991px) {
+            .navbar-collapse .navbar-nav .btn {
+                padding: 10px 15px; /* Increased vertical padding for mobile */
+                margin: 5px 0; /* Vertical margin between buttons */
+                width: 100%; /* Full width for consistency */
+                text-align: left; /* Align text left for better spacing */
+            }
+        }
     </style>
 </head>
 <body>
@@ -34,21 +52,22 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <div class="navbar-nav me-auto">
                 {% if current_user.is_authenticated %}
-                    <a class="nav-item nav-link" href="{{ url_for('pick') }}">Make Picks</a>
-                    <a class="nav-item nav-link" href="{{ url_for('view_picks') }}">View Picks</a>
-                    <a class="nav-item nav-link" href="{{ url_for('leaderboard') }}">Leaderboard</a>
+                    <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'pick' }}" href="{{ url_for('pick') }}">Make Picks</a>
+                    <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'view_picks' }}" href="{{ url_for('view_picks') }}">View Picks</a>
+                    <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'leaderboard' }}" href="{{ url_for('leaderboard') }}">Leaderboard</a>
                     {% if current_user.is_admin %}
-                        <a class="nav-item nav-link" href="{{ url_for('admin') }}">Admin</a>
+                        <a class="btn btn-outline-danger {{ 'active' if request.endpoint == 'admin' }}" href="{{ url_for('admin') }}">Admin</a>
+                        <a class="btn btn-outline-danger {{ 'active' if request.endpoint == 'admin_submit_picks' }}" href="{{ url_for('admin_submit_picks') }}">Submit Picks for Users</a>
                     {% endif %}
                 {% else %}
-                    <a class="nav-item nav-link" href="{{ url_for('login') }}">Login</a>
+                    <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'login' }}" href="{{ url_for('login') }}">Login</a>
                 {% endif %}
             </div>
             {% if current_user.is_authenticated %}
-                <span class="navbar-text">
+                <span class="btn btn-info">
                     {{ current_user.username }} ({{ current_user.points }} points)
                 </span>
-                <a class="nav-item nav-link" href="{{ url_for('logout') }}">Logout</a>
+                <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'logout' }}" href="{{ url_for('logout') }}">Logout</a>
             {% endif %}
         </div>
     </nav>
