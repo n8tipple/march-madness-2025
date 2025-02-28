@@ -6,28 +6,28 @@ with app.app_context():
     # Recreate all tables
     db.create_all()
 
-    # List of users with fixed passwords, admin status, and fun names
+    # List of users with fixed passwords, admin status, corny fun names, and pictures
     users = [
-        ('June', 'jump27', False, 'Slam Dunk June'),
-        ('Don', 'shot28', False, 'Dribble Don'),
-        ('Nate', 'pass57', True, 'Nothin’ But Nate'),
-        ('Chris', 'pass18', True, 'Crossover Chris'),
-        ('Casey', 'ball32', True, 'Three-Point Casey'),
-        ('James', 'slam56', False, 'Jumpin’ James'),
-        ('Keith', 'shot61', False, 'Killer Keith'),
-        ('Dave', 'hoop19', False, 'Dunkin’ Dave'),
-        ('Sherry', 'pass48', False, 'Swish Sherry'),
-        ('Tyler', 'hoop23', False, 'Triple-Double Tyler'),
-        ('Nico', 'slam96', False, 'Net-Rippin’ Nico'),
-        ('Sid', 'ball71', False, 'Sideline Sid')
+        ('June', 'jump27', False, 'Jivin’ June', 'june.png'),      # Replaces "Slam Dunk June"
+        ('Don', 'shot28', False, 'Dashin’ Don', 'don.png'),             # Replaces "Dribble Don"
+        ('Nate', 'pass57', True, 'Nothin’ but Nate', 'nate.png'),      # Replaces "Nothin’ But Nate"
+        ('Chris', 'pass18', True, 'Crossover Chris', 'chris.png'),        # Replaces "Crossover Chris"
+        ('Casey', 'bball32', True, 'Center Court Casey', 'casey.png'),     # Replaces "Three-Point Casey"
+        ('James', 'slam56', False, 'Jammin’ James', 'james.png'),      # Replaces "Jumpin’ James"
+        ('Keith', 'shot61', False, 'Killer Keith', 'keith.png'),       # Replaces "Killer Keith"
+        ('Dave', 'hoop19', False, 'Dunkin’ Dave', 'dave.png'),     # Replaces "Dunkin’ Dave"
+        ('Sherry', 'swish48', False, 'Swishin’ Sherry', 'sherry.png'),   # Replaces "Swish Sherry"
+        ('Tyler', 'hoop23', False, 'Three Point Tyler', 'tyler.png'),  # Replaces "Triple-Double Tyler"
+        ('Meiko', 'slam96', False, 'Mighty Meiko', 'meiko.png'), # Replaces "Net-Rippin’ Meiko"
+        ('Sid', 'ball71', False, 'Slammin’ Sid', 'sid.png')        # Replaces "Sideline Sid"
     ]
 
-    # Create users with specified passwords and fun names
-    for username, password, is_admin, fun_name in users:
-        user = User(username=username, is_admin=is_admin, fun_name=fun_name)
+    # Create users with specified passwords, fun names, and pictures
+    for username, password, is_admin, fun_name, picture in users:
+        user = User(username=username, is_admin=is_admin, fun_name=fun_name, picture=picture)
         user.set_password(password)
         db.session.add(user)
-        print(f"User created: username={username}, password={password}, fun_name={fun_name}{' (Admin)' if is_admin else ''}")
+        print(f"User created: username={username}, password={password}, fun_name={fun_name}, picture={picture}{' (Admin)' if is_admin else ''}")
     db.session.commit()
 
     # Create First Round (Round of 64) with simplified team names
