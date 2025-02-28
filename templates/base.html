@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
         body { padding: 20px; background-color: #f8f9fa; font-family: 'Arial', sans-serif; }
-        .navbar-brand { font-weight: bold; color: #007bff; padding-left: 15px; } /* Moved right with padding */
+        .navbar-brand { font-weight: bold; color: #007bff; padding-left: 15px; }
         .navbar { box-shadow: 0 2px 4px rgba(0,0,0,.1); }
         .alert { margin-top: 20px; border-radius: 8px; animation: fadeIn 0.5s; }
         #leaderboardChart { max-height: 400px; margin: 20px 0; }
@@ -22,12 +22,12 @@
         .navbar .btn-info { color: #fff; background-color: #17a2b8; border-color: #17a2b8; margin: 0 5px; }
         .navbar .btn-info:hover { background-color: #138496; border-color: #117a8b; transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,.2); }
         .navbar .btn-outline-primary.active, .navbar .btn-outline-danger.active {
-            background-color: #007bff; /* Filled background for active primary buttons */
+            background-color: #007bff;
             color: #fff;
             border-color: #007bff;
         }
         .navbar .btn-outline-danger.active {
-            background-color: #dc3545; /* Filled background for active danger buttons */
+            background-color: #dc3545;
             color: #fff;
             border-color: #dc3545;
         }
@@ -35,10 +35,10 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @media (max-width: 991px) {
             .navbar-collapse .navbar-nav .btn {
-                padding: 10px 15px; /* Increased vertical padding for mobile */
-                margin: 5px 0; /* Vertical margin between buttons */
-                width: 100%; /* Full width for consistency */
-                text-align: left; /* Align text left for better spacing */
+                padding: 10px 15px;
+                margin: 5px 0;
+                width: 100%;
+                text-align: left;
             }
         }
     </style>
@@ -66,7 +66,7 @@
             </div>
             {% if current_user.is_authenticated %}
                 <span class="btn btn-info">
-                    {{ current_user.username }} ({{ current_user.points }} points)
+                    {{ current_user.username }} ({{ user_points }} points)
                 </span>
                 <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'logout' }}" href="{{ url_for('logout') }}" onclick="showLoading()">Logout</a>
             {% endif %}

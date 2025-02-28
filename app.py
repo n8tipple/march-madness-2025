@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from flask_bcrypt import Bcrypt
 import logging
+import time
+from sqlalchemy.orm import joinedload
 
 app = Flask(__name__)
 
@@ -59,7 +61,7 @@ class Game(db.Model):
     team1 = db.Column(db.String(100), nullable=False)
     team2 = db.Column(db.String(100), nullable=False)
     winner = db.Column(db.String(100), nullable=True)
-    picks = db.relationship('Pick', backref='game')
+    picks = db.relationship('Pick', backref='game_instance')
 
 class Pick(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -67,32 +69,27 @@ class Pick(db.Model):
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
     picked_team = db.Column(db.String(100), nullable=False)
     wager = db.Column(db.Integer, default=0)
+    points = db.Column(db.Integer, default=0)
     user = db.relationship('User', backref='picks')
+    game = db.relationship('Game', backref='game_picks')
 
 # Helper Functions
 def calculate_points(round):
     games = Game.query.filter_by(round_id=round.id).filter(Game.winner.isnot(None)).all()
     picks = Pick.query.filter(Pick.game_id.in_([g.id for g in games])).all()
     for pick in picks:
-        game = Game.query.get(pick.game_id)
+        game = pick.game
         if game.winner:
             if pick.picked_team == game.winner:
                 if round.name == 'Championship':
-                    pick.user.points += pick.wager
+                    pick.points = pick.wager
                 else:
-                    pick.user.points += round.point_value
-            elif round.name == 'Championship' and game.winner:
-                pick.user.points -= pick.wager
-    db.session.commit()
-
-def recalculate_all_points():
-    users = User.query.all()
-    for user in users:
-        user.points = 0
-    db.session.commit()
-    closed_rounds = Round.query.filter_by(closed=True).all()
-    for round in closed_rounds:
-        calculate_points(round)
+                    pick.points = round.point_value
+            else:
+                if round.name == 'Championship':
+                    pick.points = -pick.wager
+                else:
+                    pick.points = 0
     db.session.commit()
 
 def create_next_round(current_round):
@@ -111,12 +108,24 @@ def create_next_round(current_round):
             db.session.add(Game(round_id=next_round.id, team1=team1, team2=team2))
     db.session.commit()
 
+# Context Processor for Navbar Points
+@app.context_processor
+def inject_user_points():
+    if current_user.is_authenticated:
+        total_points = db.session.query(db.func.sum(Pick.points)).filter(Pick.user_id == current_user.id).scalar() or 0
+        return {'user_points': total_points}
+    return {'user_points': 0}
+
 # Routes
 @app.route('/')
 def home():
     all_rounds_complete = not Round.query.join(Game).filter(Game.winner.is_(None)).first()
     if all_rounds_complete:
-        users = User.query.order_by(User.points.desc()).all()
+        users = User.query.all()
+        for user in users:
+            total_points = db.session.query(db.func.sum(Pick.points)).filter(Pick.user_id == user.id).scalar() or 0
+            user.points = total_points
+        users = sorted(users, key=lambda u: u.points, reverse=True)
         return render_template('leaderboard.html', users=users, final=True)
     current_round = Round.query.filter_by(closed=False).order_by(Round.id).first()
     return render_template('home.html', current_round=current_round)
@@ -199,56 +208,58 @@ def pick():
 @app.route('/view_picks')
 @login_required
 def view_picks():
+    start_time = time.time()
     closed_rounds = Round.query.filter_by(closed=True).order_by(Round.id.desc()).all()
+    logger.debug(f"Fetched closed rounds in {time.time() - start_time:.3f} seconds")
     if not closed_rounds:
         flash('No closed rounds available to view picks', 'warning')
         return redirect(url_for('home'))
 
+    start_time = time.time()
     users = User.query.all()
+    logger.debug(f"Fetched users in {time.time() - start_time:.3f} seconds")
+
+    start_time = time.time()
     closed_round_ids = [round.id for round in closed_rounds]
     games = Game.query.filter(Game.round_id.in_(closed_round_ids)).all()
     game_ids = [game.id for game in games]
+    logger.debug(f"Fetched games in {time.time() - start_time:.3f} seconds")
 
-    picks = Pick.query.filter(Pick.game_id.in_(game_ids)).all()
+    start_time = time.time()
+    picks = Pick.query.options(joinedload(Pick.user), joinedload(Pick.game)).filter(Pick.game_id.in_(game_ids)).all()
+    logger.debug(f"Fetched picks with joinedload in {time.time() - start_time:.3f} seconds")
+
+    start_time = time.time()
     picks_by_game = {}
     for pick in picks:
         if pick.game_id not in picks_by_game:
             picks_by_game[pick.game_id] = []
         picks_by_game[pick.game_id].append(pick)
 
-    for user in users:
-        user.points = 0
-    for round in closed_rounds:
-        calculate_points(round)
-    db.session.commit()
-
     games_by_round = {round.id: [g for g in games if g.round_id == round.id] for round in closed_rounds}
     for round_id, round_games in games_by_round.items():
         logger.debug(f"Round {round_id} has {len(round_games)} games")
-        for game in round_games:
-            game.picks = picks_by_game.get(game.id, [])
 
     points_by_user_game = {}
     user_totals_by_round = {}
     for round in closed_rounds:
-        points_by_user_game[round.id] = {user.id: {} for user in users}
-        user_totals_by_round[round.id] = {user.id: 0 for user in users}
-        for game in games_by_round[round.id]:
-            for user in users:
+        points_by_user_game[round.id] = {}
+        user_totals_by_round[round.id] = {}
+        for user in users:
+            points_by_user_game[round.id][user.id] = {}
+            total = 0
+            for game in games_by_round[round.id]:
                 pick = next((p for p in picks_by_game.get(game.id, []) if p.user_id == user.id), None)
-                points = 0
-                if game.winner and pick:
-                    if pick.picked_team == game.winner:
-                        points = pick.wager if round.name == 'Championship' else round.point_value
-                    elif round.name == 'Championship':
-                        points = -pick.wager
+                points = pick.points if pick else 0
                 points_by_user_game[round.id][user.id][game.id] = points
-                user_totals_by_round[round.id][user.id] += points
+                total += points
+            user_totals_by_round[round.id][user.id] = total
 
     for round_id in user_totals_by_round:
         user_totals = [(user, user_totals_by_round[round_id][user.id]) for user in users]
         user_totals_by_round[round_id] = sorted(user_totals, key=lambda x: x[1], reverse=True)
 
+    logger.debug(f"Processed data for view_picks in {time.time() - start_time:.3f} seconds")
     return render_template('view_picks.html', closed_rounds=closed_rounds, users=users,
                           games_by_round=games_by_round, points_by_user_game=points_by_user_game,
                           user_totals_by_round=user_totals_by_round)
@@ -329,7 +340,7 @@ def admin():
                         flash('Cannot create next round: All winners must be set', 'error')
                 
                 db.session.commit()
-                recalculate_all_points()
+                calculate_points(selected_round)
                 flash(f'{selected_round.name} saved successfully', 'success')
         return redirect(url_for('admin', round_id=selected_round_id))
     
@@ -421,8 +432,17 @@ def admin_submit_picks():
 
 @app.route('/leaderboard')
 def leaderboard():
-    recalculate_all_points()
-    users = User.query.order_by(User.points.desc()).all()
+    # Fetch all users
+    users = User.query.all()
+    
+    # Calculate total points from Pick.points for each user
+    for user in users:
+        total_points = db.session.query(db.func.sum(Pick.points)).filter(Pick.user_id == user.id).scalar() or 0
+        user.points = total_points
+    
+    # Sort users by points in descending order
+    users = sorted(users, key=lambda u: u.points, reverse=True)
+    
     return render_template('leaderboard.html', users=users)
 
 if __name__ == '__main__':
