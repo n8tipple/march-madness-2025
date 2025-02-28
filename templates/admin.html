@@ -1,9 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
 <h2 class="text-primary mb-4">Admin Panel</h2>
+
+<!-- Loading Indicator -->
+<div id="loading-indicator" class="d-none text-center my-3">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<!-- Round Selector Dropdown -->
 <div class="mb-3">
     <label for="roundSelect" class="form-label">Select Round:</label>
-    <select id="roundSelect" class="form-select" onchange="window.location.href='{{ url_for('admin') }}?round_id=' + this.value">
+    <select id="roundSelect" class="form-select" onchange="showLoading(); window.location.href='{{ url_for('admin') }}?round_id=' + this.value">
         {% for round in all_rounds %}
             <option value="{{ round.id }}" {% if selected_round and selected_round.id == round.id %}selected{% endif %}>
                 {{ round.name }} ({{ 'Closed' if round.closed else 'Open' }})
@@ -129,15 +138,22 @@
             </tbody>
         </table>
     </div>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
-        });
-    </script>
-    <style>
-        .pick-cell { cursor: pointer; padding: 10px; }
-        .pick-cell:hover { background-color: #f0f0f0; }
-    </style>
 {% endif %}
+
+<script>
+    // Show loading indicator when round changes
+    function showLoading() {
+        document.getElementById('loading-indicator').classList.remove('d-none');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
+    });
+</script>
+
+<style>
+    .pick-cell { cursor: pointer; padding: 10px; }
+    .pick-cell:hover { background-color: #f0f0f0; }
+</style>
 {% endblock %}

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h2 class="text-primary mb-4">Leaderboard</h2>
+<h6 class="text-muted mb-3">Click images to enlarge</h6>
 
 <!-- Calculate max_points for background scaling -->
 {% set max_points = users|map(attribute='points')|max if users else 1 %}
@@ -34,7 +35,7 @@
         </div>
     </div>
     
-    <!-- Modal for Picture with Fun Name and User in Header -->
+    <!-- Modal for Picture with Fun Name in Header -->
     <div class="modal fade" id="picModal{{ user.id }}" tabindex="-1" aria-labelledby="picModalLabel{{ user.id }}" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
