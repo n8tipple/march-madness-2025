@@ -3,6 +3,8 @@ from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from flask_bcrypt import Bcrypt
+from flask_caching import Cache  # Added for caching
+import logging
 
 app = Flask(__name__)
 
@@ -12,8 +14,15 @@ try:
 except FileNotFoundError:
     raise Exception("Error: secret_key.txt not found in project directory. Please create it with a secure key.")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///mm2025.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres.klggxmynqzhtoxoalngl:U%40FTA_mZhava.6y@aws-0-us-west-1.pooler.supabase.com:6543/postgres')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Configure cache
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})  # Added for caching
 
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
@@ -32,6 +41,7 @@ class User(db.Model, UserMixin):
     points = db.Column(db.Integer, default=0)
     is_admin = db.Column(db.Boolean, default=False)
     fun_name = db.Column(db.String(100), default='')
+    picture = db.Column(db.String(100), default='default.png')
 
     def set_password(self, password):
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
@@ -62,6 +72,48 @@ class Pick(db.Model):
     picked_team = db.Column(db.String(100), nullable=False)
     wager = db.Column(db.Integer, default=0)
     user = db.relationship('User', backref='picks')
+
+# Helper Functions
+def calculate_points(round):
+    games = Game.query.filter_by(round_id=round.id).filter(Game.winner.isnot(None)).all()
+    picks = Pick.query.filter(Pick.game_id.in_([g.id for g in games])).all()
+    for pick in picks:
+        game = Game.query.get(pick.game_id)
+        if game.winner:
+            if pick.picked_team == game.winner:
+                if round.name == 'Championship':
+                    pick.user.points += pick.wager
+                else:
+                    pick.user.points += round.point_value
+            elif round.name == 'Championship' and game.winner:
+                pick.user.points -= pick.wager
+    db.session.commit()
+
+def recalculate_all_points():
+    users = User.query.all()
+    for user in users:
+        user.points = 0
+    db.session.commit()
+    closed_rounds = Round.query.filter_by(closed=True).all()
+    for round in closed_rounds:
+        calculate_points(round)
+    db.session.commit()
+
+def create_next_round(current_round):
+    round_names = ['First Round (Round of 64)', 'Second Round (Round of 32)', 'Sweet 16', 'Elite Eight', 'Final Four', 'Championship']
+    idx = round_names.index(current_round.name)
+    next_round_name = round_names[idx + 1]
+    point_value = current_round.point_value * 2 if next_round_name != 'Championship' else current_round.point_value
+    next_round = Round(name=next_round_name, point_value=point_value, closed=True, closed_for_selection=True)
+    db.session.add(next_round)
+    db.session.commit()
+    games = Game.query.filter_by(round_id=current_round.id).order_by(Game.id).all()
+    for i in range(0, len(games), 2):
+        team1 = games[i].winner
+        team2 = games[i + 1].winner if i + 1 < len(games) else None
+        if team1 and team2:
+            db.session.add(Game(round_id=next_round.id, team1=team1, team2=team2))
+    db.session.commit()
 
 # Routes
 @app.route('/')
@@ -97,7 +149,9 @@ def logout():
 @app.route('/pick', methods=['GET', 'POST'])
 @login_required
 def pick():
-    current_round = Round.query.filter_by(closed=False).order_by(Round.id).first()
+    all_open_rounds = Round.query.filter_by(closed=False).order_by(Round.id).all()
+    selected_round_id = request.args.get('round_id', type=int) or (all_open_rounds[0].id if all_open_rounds else None)
+    current_round = Round.query.get(selected_round_id) if selected_round_id and all_open_rounds else None
     if not current_round:
         flash('No open rounds available for picks', 'warning')
         return redirect(url_for('home'))
@@ -126,39 +180,23 @@ def pick():
                     if current_round.name == 'Championship':
                         try:
                             wager = int(request.form.get('wager', existing_pick.wager))
-                            if wager < 0:
-                                wager = 0
-                            if wager > current_user.points:
-                                wager = current_user.points
+                            wager = max(0, min(wager, current_user.points))
                             existing_pick.wager = wager
                         except ValueError:
-                            existing_pick.wager = existing_pick.wager
+                            pass
                 else:
                     pick = Pick(user_id=current_user.id, game_id=game.id, picked_team=picked_team)
                     if current_round.name == 'Championship':
                         try:
                             wager = int(request.form.get('wager', 0))
-                            if wager < 0:
-                                wager = 0
-                            if wager > current_user.points:
-                                wager = current_user.points
+                            wager = max(0, min(wager, current_user.points))
                             pick.wager = wager
                         except ValueError:
                             pick.wager = 0
                     db.session.add(pick)
 
             db.session.commit()
-
-            # Recalculate scores for all closed rounds
-            closed_rounds = Round.query.filter_by(closed=True).all()
-            if closed_rounds:
-                users = User.query.all()
-                for user in users:
-                    user.points = 0  # Reset points
-                for round in closed_rounds:
-                    calculate_points(round)
-                db.session.commit()
-
+            recalculate_all_points()
             flash('Picks submitted successfully!', 'success')
             return redirect(url_for('home'))
         except Exception as e:
@@ -166,23 +204,76 @@ def pick():
             flash(f'Error saving picks: {str(e)}', 'danger')
             return redirect(url_for('pick'))
 
-    return render_template('pick.html', games=games, existing_picks=existing_picks, current_round=current_round, prev_winners=prev_winners if current_round.name != 'First Round (Round of 64)' else None)
+    return render_template('pick.html', all_open_rounds=all_open_rounds, games=games, existing_picks=existing_picks, current_round=current_round, prev_winners=prev_winners if current_round.name != 'First Round (Round of 64)' else None)
 
 @app.route('/view_picks')
+@cache.cached(timeout=300)  # Cache for 5 minutes
 @login_required
 def view_picks():
-    closed_rounds = Round.query.filter_by(closed=True).all()
+    # Fetch closed rounds once, ordered by id descending (most recent first)
+    closed_rounds = Round.query.filter_by(closed=True).order_by(Round.id.desc()).all()
     if not closed_rounds:
         flash('No closed rounds available to view picks', 'warning')
         return redirect(url_for('home'))
-    # Recalculate total points for all users
+
+    # Fetch all users once
     users = User.query.all()
+
+    # Get all game IDs for closed rounds in one query
+    closed_round_ids = [round.id for round in closed_rounds]
+    games = Game.query.filter(Game.round_id.in_(closed_round_ids)).all()
+    game_ids = [game.id for game in games]
+
+    # Fetch all picks for these games in one query
+    picks = Pick.query.filter(Pick.game_id.in_(game_ids)).all()
+
+    # Precompute game-to-picks mapping for efficiency
+    picks_by_game = {}
+    for pick in picks:
+        if pick.game_id not in picks_by_game:
+            picks_by_game[pick.game_id] = []
+        picks_by_game[pick.game_id].append(pick)
+
+    # Reset points and recalculate only once
     for user in users:
-        user.points = 0  # Reset points
+        user.points = 0
     for round in closed_rounds:
         calculate_points(round)
     db.session.commit()
-    return render_template('view_picks.html', closed_rounds=closed_rounds)
+
+    # Organize games by round efficiently
+    games_by_round = {round.id: [g for g in games if g.round_id == round.id] for round in closed_rounds}
+    for round_id, round_games in games_by_round.items():
+        logger.debug(f"Round {round_id} has {len(round_games)} games")
+        for game in round_games:
+            game.picks = picks_by_game.get(game.id, [])
+
+    # Precompute points and totals
+    points_by_user_game = {}
+    user_totals_by_round = {}
+    for round in closed_rounds:
+        points_by_user_game[round.id] = {user.id: {} for user in users}
+        user_totals_by_round[round.id] = {user.id: 0 for user in users}
+        for game in games_by_round[round.id]:
+            for user in users:
+                pick = next((p for p in picks_by_game.get(game.id, []) if p.user_id == user.id), None)
+                points = 0
+                if game.winner and pick:
+                    if pick.picked_team == game.winner:
+                        points = pick.wager if round.name == 'Championship' else round.point_value
+                    elif round.name == 'Championship':
+                        points = -pick.wager
+                points_by_user_game[round.id][user.id][game.id] = points
+                user_totals_by_round[round.id][user.id] += points
+
+    # Sort users by total points per round
+    for round_id in user_totals_by_round:
+        user_totals = [(user, user_totals_by_round[round_id][user.id]) for user in users]
+        user_totals_by_round[round_id] = sorted(user_totals, key=lambda x: x[1], reverse=True)
+
+    return render_template('view_picks.html', closed_rounds=closed_rounds, users=users,
+                          games_by_round=games_by_round, points_by_user_game=points_by_user_game,
+                          user_totals_by_round=user_totals_by_round)
 
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
@@ -260,20 +351,10 @@ def admin():
                         flash('Cannot create next round: All winners must be set', 'error')
                 
                 db.session.commit()
-                calculate_points(selected_round)
+                recalculate_all_points()
                 flash(f'{selected_round.name} saved successfully', 'success')
         return redirect(url_for('admin', round_id=selected_round_id))
     
-    # Recalculate scores for all closed rounds on GET
-    closed_rounds = Round.query.filter_by(closed=True).all()
-    if closed_rounds:
-        users = User.query.all()
-        for user in users:
-            user.points = 0  # Reset points
-        for round in closed_rounds:
-            calculate_points(round)
-        db.session.commit()
-
     prev_round = None
     if selected_round and selected_round.name != 'First Round (Round of 64)':
         round_names = ['First Round (Round of 64)', 'Second Round (Round of 32)', 'Sweet 16', 'Elite Eight', 'Final Four', 'Championship']
@@ -295,52 +376,78 @@ def admin():
 
     return render_template('admin.html', all_rounds=all_rounds, selected_round=selected_round, prev_winners=prev_winners, users_with_picks=users_with_picks)
 
+@app.route('/admin_submit_picks', methods=['GET', 'POST'])
+@login_required
+def admin_submit_picks():
+    if not current_user.is_admin:
+        flash('Access denied', 'error')
+        return redirect(url_for('home'))
+    
+    all_open_rounds = Round.query.filter_by(closed=False).order_by(Round.id).all()
+    selected_round_id = request.form.get('round_id', type=int) or request.args.get('round_id', type=int) or (all_open_rounds[0].id if all_open_rounds else None)
+    current_round = Round.query.get(selected_round_id) if selected_round_id and all_open_rounds else None
+    users = User.query.all()
+    
+    if not current_round:
+        flash('No open rounds available for picks', 'warning')
+        return redirect(url_for('admin'))
+    
+    games = Game.query.filter_by(round_id=current_round.id).all()
+    
+    selected_user_id = request.form.get('user_id', type=int) if request.method == 'POST' else request.args.get('user_id', type=int)
+    selected_user = User.query.get(selected_user_id) if selected_user_id else None
+    
+    existing_picks = {}
+    if selected_user:
+        picks = Pick.query.filter(Pick.user_id == selected_user.id, Pick.game_id.in_([g.id for g in games])).all()
+        existing_picks = {pick.game_id: pick for pick in picks}
+    
+    if request.method == 'POST' and 'submit_picks' in request.form and selected_user:
+        try:
+            for game in games:
+                picked_team = request.form.get(f'game{game.id}')
+                if not picked_team or picked_team not in [game.team1, game.team2]:
+                    flash('Invalid or missing selection for a game.', 'danger')
+                    db.session.rollback()
+                    return redirect(url_for('admin_submit_picks', round_id=current_round.id, user_id=selected_user_id))
+                
+                existing_pick = Pick.query.filter_by(user_id=selected_user.id, game_id=game.id).first()
+                if existing_pick:
+                    existing_pick.picked_team = picked_team
+                    if current_round.name == 'Championship':
+                        try:
+                            wager = int(request.form.get('wager', existing_pick.wager))
+                            wager = max(0, min(wager, selected_user.points))
+                            existing_pick.wager = wager
+                        except ValueError:
+                            pass
+                else:
+                    pick = Pick(user_id=selected_user.id, game_id=game.id, picked_team=picked_team)
+                    if current_round.name == 'Championship':
+                        try:
+                            wager = int(request.form.get('wager', 0))
+                            wager = max(0, min(wager, selected_user.points))
+                            pick.wager = wager
+                        except ValueError:
+                            pick.wager = 0
+                    db.session.add(pick)
+            
+            db.session.commit()
+            recalculate_all_points()
+            flash(f'Picks submitted successfully for {selected_user.username}!', 'success')
+            return redirect(url_for('admin'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error saving picks: {str(e)}', 'danger')
+            return redirect(url_for('admin_submit_picks', round_id=current_round.id, user_id=selected_user_id))
+    
+    return render_template('admin_submit_picks.html', all_open_rounds=all_open_rounds, current_round=current_round, games=games, users=users, existing_picks=existing_picks, selected_user_id=selected_user_id, selected_user=selected_user)
+
 @app.route('/leaderboard')
 def leaderboard():
-    # Recalculate scores for all closed rounds
-    closed_rounds = Round.query.filter_by(closed=True).all()
-    if closed_rounds:
-        users = User.query.all()
-        for user in users:
-            user.points = 0  # Reset points
-        for round in closed_rounds:
-            calculate_points(round)
-        db.session.commit()
-
+    recalculate_all_points()
     users = User.query.order_by(User.points.desc()).all()
     return render_template('leaderboard.html', users=users)
 
-# Helper Functions
-def calculate_points(round):
-    games = Game.query.filter_by(round_id=round.id).filter(Game.winner.isnot(None)).all()
-    picks = Pick.query.filter(Pick.game_id.in_([g.id for g in games])).all()
-    for pick in picks:
-        game = Game.query.get(pick.game_id)
-        if game.winner:
-            if pick.picked_team == game.winner:
-                if round.name == 'Championship':
-                    pick.user.points += pick.wager
-                else:
-                    pick.user.points += round.point_value
-            elif round.name == 'Championship' and game.winner:
-                pick.user.points -= pick.wager
-    db.session.commit()
-
-def create_next_round(current_round):
-    round_names = ['First Round (Round of 64)', 'Second Round (Round of 32)', 'Sweet 16', 'Elite Eight', 'Final Four', 'Championship']
-    idx = round_names.index(current_round.name)
-    next_round_name = round_names[idx + 1]
-    point_value = current_round.point_value * 2 if next_round_name != 'Championship' else current_round.point_value
-    next_round = Round(name=next_round_name, point_value=point_value, closed=True, closed_for_selection=True)
-    db.session.add(next_round)
-    db.session.commit()
-    games = Game.query.filter_by(round_id=current_round.id).order_by(Game.id).all()
-    for i in range(0, len(games), 2):
-        team1 = games[i].winner
-        team2 = games[i + 1].winner if i + 1 < len(games) else None
-        if team1 and team2:
-            db.session.add(Game(round_id=next_round.id, team1=team1, team2=team2))
-    db.session.commit()
-
-# Export Flask app for Vercel
-app = app
+if __name__ == '__main__':
+    app.run(debug=True)

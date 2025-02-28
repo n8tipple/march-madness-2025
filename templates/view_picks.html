@@ -1,65 +1,264 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="text-primary mb-4">View Picks for Closed Rounds</h2>
-{% for round in closed_rounds %}
-    <div class="mb-4">
-        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#round{{ round.id }}"
-            aria-expanded="false" aria-controls="round{{ round.id }}">
-            {{ round.name }}{% if round.name == 'Championship' %} (Wager-Based){% else %} (Point Value: {{ round.point_value }}){% endif %}
-        </button>
-        <div class="collapse" id="round{{ round.id }}">
-            <div class="row mt-3">
-                {% for game in round.games %}
-                    <div class="col-md-6">
-                        <div class="card mb-3 shadow-sm">
-                            <div class="card-header bg-dark text-white">
-                                <h5>{{ game.team1 }} vs {{ game.team2 }}</h5>
-                            </div>
-                            <div class="card-body">
-                                <p><strong>Winner:</strong> {{ game.winner if game.winner else 'Not set' }}</p>
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>User</th>
-                                            <th>Pick</th>
-                                            <th>Points</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for pick in game.picks %}
-                                        <tr class="{{ 'table-success' if pick.picked_team == game.winner else 'table-danger' if game.winner else '' }}">
-                                            <td>{{ pick.user.username }}</td>
-                                            <td>{{ pick.picked_team }}</td>
-                                            <td>
-                                                {% if game.winner %}
-                                                    {% if pick.picked_team == game.winner %}
-                                                        {% if round.name == 'Championship' %}
-                                                            {{ pick.wager }}
-                                                        {% else %}
-                                                            {{ round.point_value }}
-                                                        {% endif %}
-                                                    {% elif round.name == 'Championship' %}
-                                                        -{{ pick.wager }}
-                                                    {% else %}
-                                                        0
-                                                    {% endif %}
-                                                {% else %}
-                                                    0
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                        {% if not game.picks %}
-                                            <tr><td colspan="3" class="text-muted">No picks made</td></tr>
-                                        {% endif %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
+<h2 class="text-primary mb-3">View Picks for Closed Rounds</h2>
+
+<!-- Define round name mapping -->
+{% set round_name_map = {
+    'First Round (Round of 64)': 'First Round',
+    'Second Round (Round of 32)': 'Second Round',
+    'Sweet 16': 'Sweet 16',
+    'Elite Eight': 'Elite 8',
+    'Final Four': 'Final 4',
+    'Championship': 'Championship'
+} %}
+
+<!-- Define full name mapping for titles -->
+{% set full_name_map = {
+    'First Round (Round of 64)': 'First Round (Round of 64)',
+    'Second Round (Round of 32)': 'Second Round (Round of 32)',
+    'Sweet 16': 'Sweet 16',
+    'Elite Eight': 'Elite 8',
+    'Final Four': 'Final 4',
+    'Championship': 'Championship'
+} %}
+
+<!-- Round Selector Buttons -->
+<div class="d-block mb-4">
+    <div class="btn-group flex-wrap w-100" role="group">
+        {% set round_order = ['Championship', 'Final 4', 'Elite 8', 'Sweet 16', 'Second Round', 'First Round'] %}
+        {% for round_name in round_order %}
+            {% for round in closed_rounds if round.name in round_name_map and round_name_map[round.name] == round_name %}
+            <button class="btn btn-outline-primary {{ 'active' if round == closed_rounds[0] }}" type="button" data-round-id="{{ round.id }}"
+                onclick="toggleRound('{{ round.id }}')">
+                {{ round_name }}
+            </button>
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+
+<!-- View Toggle Tabs -->
+<div class="d-block mb-4">
+    <div class="btn-group w-100" role="group">
+        <button class="btn btn-outline-primary view-tab active" data-view="summary">Summary View</button>
+        <button class="btn btn-outline-primary view-tab" data-view="detailed">Detailed View</button>
+    </div>
+</div>
+
+<!-- Summary View -->
+<div id="summary-view" class="view-content">
+    {% for round in closed_rounds %}
+    <div class="summary-round collapse {{ 'show' if round == closed_rounds[0] }}" id="round{{ round.id }}">
+        <h3>{{ full_name_map[round.name] }}</h3>
+        <div class="grid-container">
+            <!-- Header Row -->
+            <div class="grid-header sticky-top" style="grid-row: 1; grid-column: 1; min-height: 40px;">Game</div>
+            {% for user, total in user_totals_by_round[round.id] %}
+            <div class="grid-header sticky-top rotated-text" style="grid-row: 1; grid-column: {{ loop.index + 1 }}; min-height: 40px;">
+                <span>{{ user.username }}</span>
             </div>
+            {% endfor %}
+            <!-- Game Rows -->
+            {% for game in games_by_round[round.id] %}
+            {% set game_row = loop.index + 2 %}
+            <div class="grid-game sticky-left" style="grid-row: {{ game_row }}; grid-column: 1; min-height: 40px;">{{ game.team1 }} vs {{ game.team2 }}</div>
+            {% for user, total in user_totals_by_round[round.id] %}
+            <div class="grid-cell {% if points_by_user_game[round.id][user.id][game.id] > 0 %}table-success{% else %}table-danger{% endif %}" 
+                 style="grid-row: {{ game_row }}; grid-column: {{ loop.index + 1 }}; min-height: 40px;">
+                {{ points_by_user_game[round.id][user.id][game.id] }}
+            </div>
+            {% endfor %}
+            {% endfor %}
+            <!-- Total Row -->
+            {% set total_row = games_by_round[round.id]|length + 3 %}
+            <div class="grid-total table-dark" style="grid-row: {{ total_row }}; grid-column: 1; min-height: 40px;"><strong>Round Total</strong></div>
+            {% for user, total in user_totals_by_round[round.id] %}
+            <div class="grid-total table-dark" style="grid-row: {{ total_row }}; grid-column: {{ loop.index + 1 }}; min-height: 40px;"><strong>{{ total }}</strong></div>
+            {% endfor %}
         </div>
     </div>
-{% endfor %}
+    {% endfor %}
+</div>
+
+<!-- Detailed View -->
+<div id="detailed-view" class="view-content hidden">
+    {% for round in closed_rounds %}
+    <div class="detailed-round collapse {{ 'show' if round == closed_rounds[0] }}" id="round{{ round.id }}">
+        <h3>{{ full_name_map[round.name] }}</h3>
+        <div class="row mt-3">
+            {% for game in games_by_round[round.id] %}
+            <div class="col-md-6">
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-header bg-dark text-white">
+                        <h5>{{ game.team1 }} vs {{ game.team2 }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Winner:</strong> {{ game.winner if game.winner else 'Not set' }}</p>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">User</th> <!-- Reduced from 40% to 30% -->
+                                    <th style="width: 45%;">Pick</th> <!-- Increased from 40% to 45% -->
+                                    <th style="width: 25%;" class="text-center">Points</th> <!-- Increased from 20% to 25% -->
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pick in game.picks %}
+                                <tr class="{{ 'table-success' if pick.picked_team == game.winner else 'table-danger' if game.winner else '' }}">
+                                    <td>{{ pick.user.username }}</td>
+                                    <td>{{ pick.picked_team }}</td>
+                                    <td class="text-center">
+                                        {% if game.winner %}
+                                            {% if pick.picked_team == game.winner %}
+                                                {% if round.name == 'Championship' %}
+                                                    {{ pick.wager }}
+                                                {% else %}
+                                                    {{ round.point_value }}
+                                                {% endif %}
+                                            {% elif round.name == 'Championship' %}
+                                                -{{ pick.wager }}
+                                            {% else %}
+                                                0
+                                            {% endif %}
+                                        {% else %}
+                                            0
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% if not game.picks %}
+                                    <tr><td colspan="3" class="text-muted">No picks made</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    // Toggle Rounds
+    function toggleRound(roundId) {
+        const allRounds = document.querySelectorAll('[id^="round"]');
+        allRounds.forEach(round => {
+            round.classList.remove('show');
+        });
+        document.querySelector(`#round${roundId}.detailed-round`).classList.add('show');
+        document.querySelector(`#round${roundId}.summary-round`).classList.add('show');
+
+        // Update active round button
+        document.querySelectorAll('.btn-group[role="group"] button[data-round-id]').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('data-round-id') === roundId) {
+                btn.classList.add('active');
+            }
+        });
+    }
+
+    // Toggle Views
+    document.querySelectorAll('.view-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            const view = this.getAttribute('data-view');
+            document.querySelectorAll('.view-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(`${view}-view`).classList.remove('hidden');
+
+            // Ensure the currently visible round stays in sync
+            const visibleRound = document.querySelector('.detailed-round.show, .summary-round.show');
+            if (visibleRound) {
+                const roundId = visibleRound.id.replace('round', '');
+                toggleRound(roundId);
+            }
+        });
+    });
+
+    // Show most recent round by default
+    if (document.querySelector('[id^="round"]')) {
+        const mostRecentRoundId = document.querySelector('[id^="round"]').id.replace('round', '');
+        toggleRound(mostRecentRoundId);
+    }
+</script>
+
+<style>
+    /* General Table Styles */
+    table {
+        table-layout: fixed;
+        width: 100%;
+    }
+    td {
+        word-wrap: break-word;
+        vertical-align: middle;
+    }
+
+    /* Grid Styles for Summary View */
+    .grid-container {
+        display: grid;
+        grid-template-columns: 150px repeat({{ user_totals_by_round.values()|first|length }}, 50px);
+        grid-auto-rows: min-content; /* Ensure rows take up necessary space */
+        overflow-x: auto;
+        border: 1px solid #dee2e6;
+    }
+    .grid-header, .grid-game, .grid-cell, .grid-total {
+        padding: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #dee2e6;
+        min-height: 40px; /* Ensure consistent row height */
+    }
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        background-color: #fff;
+        z-index: 10;
+    }
+    .sticky-left {
+        position: sticky;
+        left: 0;
+        background-color: #fff;
+        z-index: 5;
+    }
+    .rotated-text span {
+        display: inline-block;
+        transform: rotate(-90deg);
+        white-space: nowrap;
+    }
+    .rotated-text {
+        height: 100px;
+    }
+    .table-success {
+        background-color: #d4edda; /* Green */
+    }
+    .table-danger {
+        background-color: #f8d7da; /* Red */
+    }
+    .table-dark {
+        background-color: #343a40; /* Dark gray */
+        color: #fff;
+    }
+
+    /* Button Styles */
+    .btn-outline-primary.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    .view-content.hidden {
+        display: none;
+    }
+    .btn-group {
+        display: flex; /* Ensure buttons stay connected */
+    }
+    .flex-wrap {
+        flex-wrap: wrap; /* Allow buttons to wrap on mobile */
+    }
+</style>
 {% endblock %}

@@ -114,14 +114,16 @@
             <thead class="table-dark">
                 <tr>
                     <th>Username</th>
-                    <th>Picks Completed <i class="fas fa-check-circle"></i></th>
+                    <th class="text-center">Picks Completed <i class="fas fa-check-circle"></i></th>
                 </tr>
             </thead>
             <tbody>
                 {% for user in users_with_picks %}
                 <tr>
                     <td>{{ user.username }}</td>
-                    <td><i class="fas fa-{{ 'check' if user.has_picks else 'times' }}-circle text-{{ 'success' if user.has_picks else 'danger' }}"></i></td>
+                    <td class="text-center">
+                        <i class="fas fa-{{ 'check' if user.has_picks else 'times' }}-circle text-{{ 'success' if user.has_picks else 'danger' }}"></i>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
