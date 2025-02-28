@@ -112,7 +112,9 @@ def create_next_round(current_round):
 @app.context_processor
 def inject_user_points():
     if current_user.is_authenticated:
-        total_points = db.session.query(db.func.sum(Pick.points)).filter(Pick.user_id == current_user.id).scalar() or 0
+        # Only count points from closed rounds
+        closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
+        total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == current_user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
         return {'user_points': total_points}
     return {'user_points': 0}
 
@@ -122,8 +124,9 @@ def home():
     all_rounds_complete = not Round.query.join(Game).filter(Game.winner.is_(None)).first()
     if all_rounds_complete:
         users = User.query.all()
+        closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
         for user in users:
-            total_points = db.session.query(db.func.sum(Pick.points)).filter(Pick.user_id == user.id).scalar() or 0
+            total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
             user.points = total_points
         users = sorted(users, key=lambda u: u.points, reverse=True)
         return render_template('leaderboard.html', users=users, final=True)
@@ -254,6 +257,7 @@ def view_picks():
                 points_by_user_game[round.id][user.id][game.id] = points
                 total += points
             user_totals_by_round[round.id][user.id] = total
+            user.points = total  # Update user.points for consistency
 
     for round_id in user_totals_by_round:
         user_totals = [(user, user_totals_by_round[round_id][user.id]) for user in users]
@@ -435,9 +439,10 @@ def leaderboard():
     # Fetch all users
     users = User.query.all()
     
-    # Calculate total points from Pick.points for each user
+    # Calculate total points from Pick.points for each user, only from closed rounds
+    closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
     for user in users:
-        total_points = db.session.query(db.func.sum(Pick.points)).filter(Pick.user_id == user.id).scalar() or 0
+        total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
         user.points = total_points
     
     # Sort users by points in descending order
