@@ -107,12 +107,12 @@ def create_next_round(current_round):
         if team1 and team2:
             db.session.add(Game(round_id=next_round.id, team1=team1, team2=team2))
     db.session.commit()
+    return next_round
 
 # Context Processor for Navbar Points
 @app.context_processor
 def inject_user_points():
     if current_user.is_authenticated:
-        # Only count points from closed rounds
         closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
         total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == current_user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
         return {'user_points': total_points}
@@ -130,20 +130,44 @@ def home():
             user.points = total_points
         users = sorted(users, key=lambda u: u.points, reverse=True)
         return render_template('leaderboard.html', users=users, final=True)
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
     current_round = Round.query.filter_by(closed=False).order_by(Round.id).first()
     return render_template('home.html', current_round=current_round)
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    users = User.query.all()
+    closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
+    for user in users:
+        total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
+        user.points = total_points
+    if users:
+        sorted_users = sorted(users, key=lambda u: u.points, reverse=True)
+        all_scores = [user.points for user in sorted_users]
+        if len(set(all_scores)) == 1:
+            winner = None
+            loser = None
+        else:
+            winner = sorted_users[0]
+            loser = sorted_users[-1]
+    else:
+        winner = None
+        loser = None
+    return render_template('dashboard.html', winner=winner, loser=loser)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('home'))
+        return redirect(url_for('dashboard'))
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
             login_user(user)
-            return redirect(url_for('home'))
+            return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password', 'danger')
     return render_template('login.html')
@@ -157,8 +181,7 @@ def logout():
 @app.route('/pick', methods=['GET', 'POST'])
 @login_required
 def pick():
-    selected_round_id = request.args.get('round_id', type=int)
-    current_round = Round.query.filter_by(id=selected_round_id, closed=False).first() if selected_round_id else Round.query.filter_by(closed=False).order_by(Round.id).first()
+    current_round = Round.query.filter_by(closed=False, closed_for_selection=False).order_by(Round.id).first()
     
     if not current_round:
         flash('No open rounds available for picks', 'warning')
@@ -167,28 +190,37 @@ def pick():
     games = Game.query.filter_by(round_id=current_round.id).all()
     picks = Pick.query.filter(Pick.user_id == current_user.id, Pick.game_id.in_([g.id for g in games])).all()
     existing_picks = {pick.game_id: pick for pick in picks}
+    
+    closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
+    user_total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == current_user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
 
+    error_game_id = None
+    wager = 0
     if request.method == 'POST':
         try:
             for game in games:
                 picked_team = request.form.get(f'game{game.id}')
                 if not picked_team or picked_team not in [game.team1, game.team2]:
-                    flash('Invalid or missing selection for a game.', 'danger')
-                    db.session.rollback()
-                    return redirect(url_for('pick'))
-
-                existing_pick = existing_picks.get(game.id)
-                if existing_pick:
-                    existing_pick.picked_team = picked_team
-                    if current_round.name == 'Championship':
-                        wager = int(request.form.get('wager', existing_pick.wager))
-                        existing_pick.wager = max(0, min(wager, current_user.points))
+                    error_game_id = game.id
+                    wager = int(request.form.get('wager', 0)) if current_round.name == 'Championship' else 0
+                    break
                 else:
-                    pick = Pick(user_id=current_user.id, game_id=game.id, picked_team=picked_team)
-                    if current_round.name == 'Championship':
-                        wager = int(request.form.get('wager', 0))
-                        pick.wager = max(0, min(wager, current_user.points))
-                    db.session.add(pick)
+                    existing_pick = existing_picks.get(game.id)
+                    if existing_pick:
+                        existing_pick.picked_team = picked_team
+                        if current_round.name == 'Championship':
+                            wager = int(request.form.get('wager', existing_pick.wager))
+                            existing_pick.wager = max(0, min(wager, user_total_points))
+                    else:
+                        pick = Pick(user_id=current_user.id, game_id=game.id, picked_team=picked_team)
+                        if current_round.name == 'Championship':
+                            wager = int(request.form.get('wager', 0))
+                            pick.wager = max(0, min(wager, user_total_points))
+                        db.session.add(pick)
+
+            if error_game_id:
+                return render_template('pick.html', games=games, existing_picks=existing_picks, current_round=current_round,
+                                       user_points=user_total_points, error_game_id=error_game_id, wager=wager)
 
             db.session.commit()
             flash('Picks submitted successfully! Points will update on next leaderboard view.', 'success')
@@ -198,15 +230,7 @@ def pick():
             flash(f'Error saving picks: {str(e)}', 'danger')
             return redirect(url_for('pick'))
 
-    all_open_rounds = Round.query.filter_by(closed=False).order_by(Round.id).all()
-    prev_round = None
-    if current_round and current_round.name != 'First Round (Round of 64)':
-        round_names = ['First Round (Round of 64)', 'Second Round (Round of 32)', 'Sweet 16', 'Elite Eight', 'Final Four', 'Championship']
-        prev_round_idx = round_names.index(current_round.name) - 1
-        prev_round = Round.query.filter_by(name=round_names[prev_round_idx]).first()
-        prev_winners = [game.winner for game in prev_round.games if game.winner] if prev_round else []
-
-    return render_template('pick.html', all_open_rounds=all_open_rounds, games=games, existing_picks=existing_picks, current_round=current_round, prev_winners=prev_winners if current_round and current_round.name != 'First Round (Round of 64)' else None)
+    return render_template('pick.html', games=games, existing_picks=existing_picks, current_round=current_round, user_points=user_total_points, error_game_id=None, wager=0)
 
 @app.route('/view_picks')
 @login_required
@@ -257,7 +281,7 @@ def view_picks():
                 points_by_user_game[round.id][user.id][game.id] = points
                 total += points
             user_totals_by_round[round.id][user.id] = total
-            user.points = total  # Update user.points for consistency
+            user.points = total
 
     for round_id in user_totals_by_round:
         user_totals = [(user, user_totals_by_round[round_id][user.id]) for user in users]
@@ -277,6 +301,9 @@ def admin():
     all_rounds = Round.query.order_by(Round.id).all()
     selected_round_id = request.args.get('round_id', type=int) or (all_rounds[-1].id if all_rounds else None)
     selected_round = Round.query.get(selected_round_id) if selected_round_id else None
+
+    # Check if the user is Chris for the prank
+    is_chris = current_user.username.lower() == 'chris'
 
     if request.method == 'POST':
         round_id = request.form.get('round_id', type=int)
@@ -321,21 +348,11 @@ def admin():
                         round_names = ['First Round (Round of 64)', 'Second Round (Round of 32)', 'Sweet 16', 'Elite Eight', 'Final Four', 'Championship']
                         next_round_name = round_names[round_names.index(selected_round.name) + 1]
                         if not Round.query.filter_by(name=next_round_name).first():
-                            next_round = Round(
-                                name=next_round_name,
-                                point_value=selected_round.point_value * 2 if next_round_name != 'Championship' else selected_round.point_value,
-                                closed=True,
-                                closed_for_selection=True
-                            )
-                            db.session.add(next_round)
+                            selected_round.closed = True
+                            selected_round.closed_for_selection = True
                             db.session.commit()
-                            games = Game.query.filter_by(round_id=selected_round.id).order_by(Game.id).all()
-                            for i in range(0, len(games), 2):
-                                team1 = games[i].winner
-                                team2 = games[i + 1].winner if i + 1 < len(games) else None
-                                if team1 and team2:
-                                    db.session.add(Game(round_id=next_round.id, team1=team1, team2=team2))
-                            db.session.commit()
+                            calculate_points(selected_round)
+                            next_round = create_next_round(selected_round)
                             flash(f'Next round ({next_round_name}) created', 'success')
                             return redirect(url_for('admin', round_id=next_round.id))
                         else:
@@ -367,7 +384,7 @@ def admin():
                 'has_picks': user_picks == len(games)
             })
 
-    return render_template('admin.html', all_rounds=all_rounds, selected_round=selected_round, prev_winners=prev_winners, users_with_picks=users_with_picks)
+    return render_template('admin.html', all_rounds=all_rounds, selected_round=selected_round, prev_winners=prev_winners, users_with_picks=users_with_picks, is_chris=is_chris)
 
 @app.route('/admin_submit_picks', methods=['GET', 'POST'])
 @login_required
@@ -389,40 +406,45 @@ def admin_submit_picks():
     selected_user_id = request.form.get('user_id', type=int) if request.method == 'POST' else request.args.get('user_id', type=int)
     selected_user = User.query.get(selected_user_id) if selected_user_id else None
     
+    selected_user_points = 0
+    if selected_user:
+        closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
+        selected_user_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == selected_user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
+
     existing_picks = {}
     if selected_user:
         picks = Pick.query.filter(Pick.user_id == selected_user.id, Pick.game_id.in_([g.id for g in games])).all()
         existing_picks = {pick.game_id: pick for pick in picks}
     
+    error_game_id = None
+    wager = 0
     if request.method == 'POST' and 'submit_picks' in request.form and selected_user:
         try:
             for game in games:
                 picked_team = request.form.get(f'game{game.id}')
                 if not picked_team or picked_team not in [game.team1, game.team2]:
-                    flash('Invalid or missing selection for a game.', 'danger')
-                    db.session.rollback()
-                    return redirect(url_for('admin_submit_picks', round_id=current_round.id, user_id=selected_user_id))
-                
-                existing_pick = Pick.query.filter_by(user_id=selected_user.id, game_id=game.id).first()
-                if existing_pick:
-                    existing_pick.picked_team = picked_team
-                    if current_round.name == 'Championship':
-                        try:
-                            wager = int(request.form.get('wager', existing_pick.wager))
-                            wager = max(0, min(wager, selected_user.points))
-                            existing_pick.wager = wager
-                        except ValueError:
-                            pass
+                    error_game_id = game.id
+                    wager = int(request.form.get('wager', 0)) if current_round.name == 'Championship' else 0
+                    break
                 else:
-                    pick = Pick(user_id=selected_user.id, game_id=game.id, picked_team=picked_team)
-                    if current_round.name == 'Championship':
-                        try:
+                    existing_pick = Pick.query.filter_by(user_id=selected_user.id, game_id=game.id).first()
+                    if existing_pick:
+                        existing_pick.picked_team = picked_team
+                        if current_round.name == 'Championship':
+                            wager = int(request.form.get('wager', existing_pick.wager))
+                            existing_pick.wager = max(0, min(wager, selected_user_points))
+                    else:
+                        pick = Pick(user_id=selected_user.id, game_id=game.id, picked_team=picked_team)
+                        if current_round.name == 'Championship':
                             wager = int(request.form.get('wager', 0))
-                            wager = max(0, min(wager, selected_user.points))
-                            pick.wager = wager
-                        except ValueError:
-                            pick.wager = 0
-                    db.session.add(pick)
+                            pick.wager = max(0, min(wager, selected_user_points))
+                        db.session.add(pick)
+            
+            if error_game_id:
+                return render_template('admin_submit_picks.html', all_open_rounds=all_open_rounds, current_round=current_round,
+                                       games=games, users=users, existing_picks=existing_picks,
+                                       selected_user_id=selected_user_id, selected_user=selected_user,
+                                       selected_user_points=selected_user_points, error_game_id=error_game_id, wager=wager)
             
             db.session.commit()
             flash(f'Picks submitted successfully for {selected_user.username}!', 'success')
@@ -432,22 +454,16 @@ def admin_submit_picks():
             flash(f'Error saving picks: {str(e)}', 'danger')
             return redirect(url_for('admin_submit_picks', round_id=current_round.id, user_id=selected_user_id))
     
-    return render_template('admin_submit_picks.html', all_open_rounds=all_open_rounds, current_round=current_round, games=games, users=users, existing_picks=existing_picks, selected_user_id=selected_user_id, selected_user=selected_user)
+    return render_template('admin_submit_picks.html', all_open_rounds=all_open_rounds, current_round=current_round, games=games, users=users, existing_picks=existing_picks, selected_user_id=selected_user_id, selected_user=selected_user, selected_user_points=selected_user_points)
 
 @app.route('/leaderboard')
 def leaderboard():
-    # Fetch all users
     users = User.query.all()
-    
-    # Calculate total points from Pick.points for each user, only from closed rounds
     closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
     for user in users:
         total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
         user.points = total_points
-    
-    # Sort users by points in descending order
     users = sorted(users, key=lambda u: u.points, reverse=True)
-    
     return render_template('leaderboard.html', users=users)
 
 if __name__ == '__main__':
