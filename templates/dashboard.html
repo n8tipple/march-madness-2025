@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container text-center">
+    <div class="row">
+        <!-- Winner -->
+        <div class="col-md-6 mb-4">
+            <h2 class="text-success">Current Winner 🎉🎉🎉</h3>
+            {% if winner %}
+                <img src="{{ url_for('static', filename=winner.picture) }}" class="img-thumbnail mb-2" 
+                     style="width: 300px; height: 300px; object-fit: cover;" 
+                     data-bs-toggle="modal" data-bs-target="#picModalWinner" alt="{{ winner.username }}'s picture">
+                <h4>{{ winner.fun_name }} ({{ winner.username }})</h4>
+                <p>{{ winner.points }} points</p>
+            {% else %}
+                <p>No winner yet.</p>
+            {% endif %}
+        </div>
+        <!-- Loser -->
+        <div class="col-md-6 mb-4">
+            <h2 class="text-danger">Current Loser 😭😭😭</h3>
+            {% if loser %}
+                <img src="{{ url_for('static', filename=loser.picture) }}" class="img-thumbnail mb-2" 
+                     style="width: 300px; height: 300px; object-fit: cover;" 
+                     data-bs-toggle="modal" data-bs-target="#picModalLoser" alt="{{ loser.username }}'s picture">
+                <h4>{{ loser.fun_name }} ({{ loser.username }})</h4>
+                <p>{{ loser.points }} points</p>
+            {% else %}
+                <p>No loser yet.</p>
+            {% endif %}
+        </div>
+    </div>
+    <div class="mt-4">
+        <a href="{{ url_for('pick') }}" class="btn btn-primary d-block d-md-inline-block my-2 mx-md-2">Make Picks</a>
+        <a href="{{ url_for('view_picks') }}" class="btn btn-primary d-block d-md-inline-block my-2 mx-md-2">View Picks</a>
+        <a href="{{ url_for('leaderboard') }}" class="btn btn-primary d-block d-md-inline-block my-2 mx-md-2">Leaderboard</a>
+    </div>
+</div>
+
+<!-- Modal for Winner -->
+{% if winner %}
+<div class="modal fade" id="picModalWinner" tabindex="-1" aria-labelledby="picModalLabelWinner" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="picModalLabelWinner">{{ winner.fun_name }} ({{ winner.username }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <img src="{{ url_for('static', filename=winner.picture) }}" class="img-fluid" alt="{{ winner.username }}'s picture">
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal for Loser -->
+{% if loser %}
+<div class="modal fade" id="picModalLoser" tabindex="-1" aria-labelledby="picModalLabelLoser" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="picModalLabelLoser">{{ loser.fun_name }} ({{ loser.username }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <img src="{{ url_for('static', filename=loser.picture) }}" class="img-fluid" alt="{{ loser.username }}'s picture">
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

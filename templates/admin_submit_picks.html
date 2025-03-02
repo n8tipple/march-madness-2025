@@ -1,39 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="text-primary mb-4">Submit Picks for {{ current_round.name }}</h2>
+<div class="container">
+    <h2 class="text-primary mb-4">Submit Picks for Users</h2>
 
-<form method="POST" id="picksForm">
-    <div class="mb-3">
-        <label for="round_id" class="form-label">Select Round</label>
-        <div class="form-check">
-            {% for round in all_open_rounds %}
-            <div class="form-check mb-2">
-                <input type="checkbox" class="form-check-input round-checkbox" name="round_id" value="{{ round.id }}"
-                    id="round{{ round.id }}"
-                    {% if round.id == current_round.id %}checked{% endif %}
-                    onchange="selectRound(this)">
-                <label class="form-check-label" for="round{{ round.id }}">{{ round.name }}</label>
-            </div>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} fade show" role="alert">{{ message }}</div>
             {% endfor %}
-        </div>
-    </div>
+        {% endif %}
+    {% endwith %}
 
+    <!-- Round Selector -->
     <div class="mb-3">
-        <label for="user_id" class="form-label">Select User</label>
-        <select class="form-select" id="user_id" name="user_id" onchange="this.form.submit()" required>
-            <option value="" {% if not selected_user_id %}selected{% endif %}>-- Select a User --</option>
-            {% for user in users %}
-            <option value="{{ user.id }}" {% if selected_user_id == user.id %}selected{% endif %}>
-                {{ user.username }}
-            </option>
+        <label for="roundSelect" class="form-label">Select Round:</label>
+        <select class="form-select" id="roundSelect" onchange="window.location.href='{{ url_for('admin_submit_picks') }}?round_id=' + this.value + '&user_id=' + document.getElementById('userSelect').value">
+            {% for round in all_open_rounds %}
+                <option value="{{ round.id }}" {% if current_round.id == round.id %}selected{% endif %}>
+                    {{ round.name }}
+                </option>
             {% endfor %}
         </select>
     </div>
 
-    {% if games and selected_user %}
-    <div class="table-responsive">
-        <table class="table table-striped" id="picksTable">
-            <thead class="table-dark">
+    <!-- User Selector -->
+    <div class="mb-3">
+        <label for="userSelect" class="form-label">Select User:</label>
+        <select class="form-select" id="userSelect" onchange="window.location.href='{{ url_for('admin_submit_picks') }}?round_id=' + document.getElementById('roundSelect').value + '&user_id=' + this.value">
+            <option value="">Select a User</option>
+            {% for user in users %}
+                <option value="{{ user.id }}" {% if selected_user_id == user.id %}selected{% endif %}>
+                    {{ user.username }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {% if selected_user and current_round %}
+    <form method="POST" id="submitPicksForm">
+        <input type="hidden" name="round_id" value="{{ current_round.id }}">
+        <input type="hidden" name="user_id" value="{{ selected_user.id }}">
+        <h3>Submit Picks for {{ selected_user.username }}</h3>
+        <h4>Round: {{ current_round.name }}</h4>
+        {% if current_round.name == 'Championship' %}
+        <div class="mb-3">
+            <label for="wagerInput" class="form-label">Wager (Max: {{ selected_user_points }} points):</label>
+            <input type="number" class="form-control" id="wagerInput" name="wager" min="0" max="{{ selected_user_points }}" value="{{ wager }}">
+        </div>
+        {% endif %}
+        <table class="table table-striped">
+            <thead>
                 <tr>
                     <th>Team 1</th>
                     <th>Team 2</th>
@@ -41,94 +58,78 @@
             </thead>
             <tbody>
                 {% for game in games %}
-                <tr id="gameRow{{ game.id }}">
+                <tr id="game-row-{{ game.id }}" class="game-row">
                     <td>
-                        <div class="form-check" style="padding-left: 2.5rem;">
-                            <input type="radio" class="form-check-input" name="game{{ game.id }}" value="{{ game.team1 }}"
+                        <div class="form-check">
+                            <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team1 }}"
                                 id="game{{ game.id }}_team1"
-                                {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team1 %}checked{% endif %}
-                                required>
+                                {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team1 %}checked{% endif %}>
                             <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
                         </div>
                     </td>
                     <td>
-                        <div class="form-check" style="padding-left: 2.5rem;">
-                            <input type="radio" class="form-check-input" name="game{{ game.id }}" value="{{ game.team2 }}"
+                        <div class="form-check">
+                            <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team2 }}"
                                 id="game{{ game.id }}_team2"
-                                {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team2 %}checked{% endif %}
-                                required>
+                                {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team2 %}checked{% endif %}>
                             <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
+                        </div>
+                    </td>
+                </tr>
+                <!-- Error message placeholder -->
+                <tr id="error-row-{{ game.id }}" class="error-row" style="display: none;">
+                    <td colspan="2">
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            Please select a team for this game.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-    </div>
-    {% if current_round.name == 'Championship' %}
-    <div class="mb-3">
-        <label for="wager" class="form-label">Wager (Max: {{ selected_user.points }})</label>
-        <input type="number" class="form-control" id="wager" name="wager" min="0" max="{{ selected_user.points }}"
-            value="{% if existing_picks %}{{ existing_picks|first|attr('wager') }}{% else %}0{% endif %}">
-    </div>
+        <button type="submit" name="submit_picks" class="btn btn-primary">Submit Picks</button>
+    </form>
     {% endif %}
-    <button type="submit" name="submit_picks" class="btn btn-primary">Submit Picks</button>
-    {% else %}
-    <div class="alert alert-warning">{% if not games %}No games available for this round yet{% else %}Please select a user{% endif %}</div>
-    {% endif %}
-</form>
 
-<script>
-    document.getElementById('picksForm').addEventListener('submit', function(event) {
-        let allSelected = true;
-        {% for game in games %}
-            const team1Checked = document.getElementById('game{{ game.id }}_team1') ? document.getElementById('game{{ game.id }}_team1').checked : false;
-            const team2Checked = document.getElementById('game{{ game.id }}_team2') ? document.getElementById('game{{ game.id }}_team2').checked : false;
-            const row = document.getElementById('gameRow{{ game.id }}');
-            if (!team1Checked && !team2Checked && row) {
-                allSelected = false;
-                row.classList.add('table-danger');
-            } else if (row) {
-                row.classList.remove('table-danger');
+    <script>
+        // On page load, scroll to the first empty pick with error if present
+        {% if error_game_id %}
+            document.getElementById('error-row-{{ error_game_id }}').style.display = 'table-row';
+            document.getElementById('game-row-{{ error_game_id }}').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        {% endif %}
+
+        document.getElementById('submitPicksForm').addEventListener('submit', function(event) {
+            document.querySelectorAll('.error-row').forEach(function(row) {
+                row.style.display = 'none';
+            });
+
+            let firstEmptyGameId = null;
+            {% for game in games %}
+                const pick_{{ game.id }} = document.querySelector('input[name="game{{ game.id }}"]:checked');
+                if (!pick_{{ game.id }}) {
+                    if (!firstEmptyGameId) {
+                        firstEmptyGameId = {{ game.id }};
+                    }
+                }
+            {% endfor %}
+
+            if (firstEmptyGameId) {
+                event.preventDefault();
+                document.getElementById('error-row-' + firstEmptyGameId).style.display = 'table-row';
+                document.getElementById('game-row-' + firstEmptyGameId).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
             }
-        {% endfor %}
-        if (!allSelected && event.submitter.name === 'submit_picks') {
-            event.preventDefault();
-            flashMessage('Please select one team per game.', 'danger');
-        }
-    });
-
-    function flashMessage(message, category) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${category} fade show`;
-        alertDiv.role = 'alert';
-        alertDiv.innerText = message;
-        document.body.insertBefore(alertDiv, document.querySelector('.container'));
-        setTimeout(() => alertDiv.remove(), 3000);
-    }
-
-    function selectRound(checkbox) {
-        document.querySelectorAll('.round-checkbox').forEach(cb => {
-            if (cb !== checkbox) cb.checked = false;
         });
-        document.getElementById('picksForm').submit();
-    }
-</script>
+    </script>
 
-<style>
-    .form-check { padding: 10px; }
-    .form-check:hover { background-color: #f0f0f0; }
-    .table-danger { background-color: #f8d7da; }
-    .round-checkbox { 
-        margin-right: 10px; 
-    }
-    .form-check-label { 
-        cursor: pointer; 
-        color: #007bff; 
-    }
-    .form-check-input:checked + .form-check-label { 
-        color: #0056b3; 
-        font-weight: bold; 
-    }
-</style>
+    <style>
+        .error-row {
+            display: none;
+        }
+        .game-row {
+            position: relative;
+        }
+    </style>
+</div>
 {% endblock %}

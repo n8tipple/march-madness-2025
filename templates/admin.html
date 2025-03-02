@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="text-primary mb-4">Admin Panel</h2>
+<h2 class="text-primary mb-4">
+    {% if is_chris %}
+        Chris-Specific Admin Panel 😉
+    {% else %}
+        Admin Panel
+    {% endif %}
+</h2>
 
 <!-- Loading Indicator -->
 <div id="loading-indicator" class="d-none text-center my-3">
@@ -44,6 +50,7 @@
                 <input type="number" class="form-control" id="pointValue" name="point_value" min="1" value="{{ selected_round.point_value }}">
             {% endif %}
         </div>
+        <h4>Select Game Winners</h4>
         <div class="table-responsive">
             <table class="table table-striped">
                 <thead class="table-dark">
@@ -69,7 +76,7 @@
                                         <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team1 }}"
                                             id="game{{ game.id }}_team1"
                                             {% if game.winner == game.team1 %}checked{% endif %}>
-                                        <label class="form-check-label" for="game{{ game.id }}_team1"> </label>
+                                        <label class="form-check-label" for="game{{ game.id }}_team1"> </label>
                                     </div>
                                     <select name="game{{ game.id }}_team1_select" class="form-select mb-2">
                                         <option value="">Select Team 1</option>
@@ -96,7 +103,7 @@
                                         <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team2 }}"
                                             id="game{{ game.id }}_team2"
                                             {% if game.winner == game.team2 %}checked{% endif %}>
-                                        <label class="form-check-label" for="game{{ game.id }}_team2"> </label>
+                                        <label class="form-check-label" for="game{{ game.id }}_team2"> </label>
                                     </div>
                                     <select name="game{{ game.id }}_team2_select" class="form-select mb-2">
                                         <option value="">Select Team 2</option>
@@ -138,22 +145,20 @@
             </tbody>
         </table>
     </div>
+    <script>
+        // Show loading indicator when round changes
+        function showLoading() {
+            document.getElementById('loading-indicator').classList.remove('d-none');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
+        });
+    </script>
+    <style>
+        .pick-cell { cursor: pointer; padding: 10px; }
+        .pick-cell:hover { background-color: #f0f0f0; }
+    </style>
 {% endif %}
-
-<script>
-    // Show loading indicator when round changes
-    function showLoading() {
-        document.getElementById('loading-indicator').classList.remove('d-none');
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
-    });
-</script>
-
-<style>
-    .pick-cell { cursor: pointer; padding: 10px; }
-    .pick-cell:hover { background-color: #f0f0f0; }
-</style>
 {% endblock %}
