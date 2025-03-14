@@ -381,7 +381,7 @@ def admin():
             user_picks = Pick.query.filter_by(user_id=user.id).filter(Pick.game_id.in_(game_ids)).count()
             users_with_picks.append({
                 'username': user.username,
-                'has_picks': user_picks == len(games)
+                'has_picks': user_picks > 0  # Changed from user_picks == len(games) to user_picks > 0
             })
 
     return render_template('admin.html', all_rounds=all_rounds, selected_round=selected_round, prev_winners=prev_winners, users_with_picks=users_with_picks, is_chris=is_chris)
