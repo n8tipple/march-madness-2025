@@ -109,6 +109,19 @@ def create_next_round(current_round):
     db.session.commit()
     return next_round
 
+def get_users_with_points():
+    closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
+    points_subquery = db.session.query(
+        Pick.user_id,
+        db.func.sum(Pick.points).label('total_points')
+    ).join(Game).filter(Game.round_id.in_(closed_round_ids)).group_by(Pick.user_id).subquery()
+    users_with_points = db.session.query(User, points_subquery.c.total_points).outerjoin(points_subquery, User.id == points_subquery.c.user_id).all()
+    users = []
+    for user, total_points in users_with_points:
+        user.points = total_points or 0
+        users.append(user)
+    return sorted(users, key=lambda u: u.points, reverse=True)
+
 # Context Processor for Navbar Points
 @app.context_processor
 def inject_user_points():
@@ -123,12 +136,7 @@ def inject_user_points():
 def home():
     all_rounds_complete = not Round.query.join(Game).filter(Game.winner.is_(None)).first()
     if all_rounds_complete:
-        users = User.query.all()
-        closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
-        for user in users:
-            total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
-            user.points = total_points
-        users = sorted(users, key=lambda u: u.points, reverse=True)
+        users = get_users_with_points()
         return render_template('leaderboard.html', users=users, final=True)
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
@@ -138,20 +146,10 @@ def home():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    users = User.query.all()
-    closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
-    for user in users:
-        total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
-        user.points = total_points
-    if users:
-        sorted_users = sorted(users, key=lambda u: u.points, reverse=True)
-        all_scores = [user.points for user in sorted_users]
-        if len(set(all_scores)) == 1:
-            winner = None
-            loser = None
-        else:
-            winner = sorted_users[0]
-            loser = sorted_users[-1]
+    users = get_users_with_points()
+    if users and users[0].points != users[-1].points:
+        winner = users[0]
+        loser = users[-1]
     else:
         winner = None
         loser = None
@@ -381,7 +379,7 @@ def admin():
             user_picks = Pick.query.filter_by(user_id=user.id).filter(Pick.game_id.in_(game_ids)).count()
             users_with_picks.append({
                 'username': user.username,
-                'has_picks': user_picks > 0  # Changed from user_picks == len(games) to user_picks > 0
+                'has_picks': user_picks == len(games)
             })
 
     return render_template('admin.html', all_rounds=all_rounds, selected_round=selected_round, prev_winners=prev_winners, users_with_picks=users_with_picks, is_chris=is_chris)
@@ -458,12 +456,7 @@ def admin_submit_picks():
 
 @app.route('/leaderboard')
 def leaderboard():
-    users = User.query.all()
-    closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
-    for user in users:
-        total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
-        user.points = total_points
-    users = sorted(users, key=lambda u: u.points, reverse=True)
+    users = get_users_with_points()
     return render_template('leaderboard.html', users=users)
 
 if __name__ == '__main__':
