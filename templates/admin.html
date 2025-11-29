@@ -1,164 +1,430 @@
 {% extends "base.html" %}
+{% block title %}Admin Panel - March Madness 2026{% endblock %}
+
 {% block content %}
-<h2 class="text-primary mb-4">
-    {% if is_chris %}
-        Chris-Specific Admin Panel 😉
-    {% else %}
-        Admin Panel
-    {% endif %}
-</h2>
-
-<!-- Loading Indicator -->
-<div id="loading-indicator" class="d-none text-center my-3">
-    <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
+<div class="admin-page">
+    <div class="d-flex justify-content-between align-items-center mb-4 animate__animated animate__fadeIn">
+        <h1 class="section-header mb-0">
+            <i class="fas fa-cog"></i>
+            Admin Panel
+        </h1>
+        <a href="{{ url_for('admin_submit_picks') }}" class="btn btn-mm-secondary">
+            <i class="fas fa-user-edit me-2"></i>Submit Picks for Users
+        </a>
     </div>
-</div>
 
-<!-- Round Selector Dropdown -->
-<div class="mb-3">
-    <label for="roundSelect" class="form-label">Select Round:</label>
-    <select id="roundSelect" class="form-select" onchange="showLoading(); window.location.href='{{ url_for('admin') }}?round_id=' + this.value">
-        {% for round in all_rounds %}
+    <!-- Round Selector -->
+    <div class="mm-card mb-4">
+        <div class="mm-card-header">
+            <i class="fas fa-list"></i>
+            Select Round
+        </div>
+        <select class="form-select form-select-lg" id="roundSelect"
+                onchange="window.location.href='{{ url_for('admin') }}?round_id=' + this.value">
+            {% for round in all_rounds %}
             <option value="{{ round.id }}" {% if selected_round and selected_round.id == round.id %}selected{% endif %}>
                 {{ round.name }} ({{ 'Closed' if round.closed else 'Open' }})
             </option>
-        {% endfor %}
-    </select>
-</div>
+            {% endfor %}
+        </select>
+    </div>
 
-{% if selected_round %}
-    <h3 class="text-secondary">Managing {{ selected_round.name }}</h3>
+    {% if selected_round %}
     <form method="POST">
         <input type="hidden" name="round_id" value="{{ selected_round.id }}">
-        <div class="form-check mb-3">
-            <input type="checkbox" class="form-check-input" id="closed" name="closed"
-                {% if selected_round.closed %}checked{% endif %}>
-            <label class="form-check-label" for="closed" data-bs-toggle="tooltip" title="Closes the round and stops user selections">
-                Close Round <i class="fas fa-lock"></i>
-            </label>
-        </div>
-        <div class="mb-3">
-            <label for="pointValue" class="form-label">
-                {% if selected_round.name == 'Championship' %}
-                    Wager-Based Round (No Fixed Points)
-                {% else %}
-                    Points per Win:
+
+        <!-- Round Settings -->
+        <div class="mm-card mb-4">
+            <div class="mm-card-header">
+                <i class="fas fa-sliders-h"></i>
+                Round Settings: {{ selected_round.name }}
+            </div>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="closedSwitch" name="closed"
+                               {% if selected_round.closed %}checked{% endif %}>
+                        <label class="form-check-label" for="closedSwitch">
+                            <i class="fas fa-lock me-2"></i>Close Round
+                        </label>
+                    </div>
+                    <small class="text-muted">Closes picks and calculates points</small>
+                </div>
+                {% if selected_round.name != 'Championship' %}
+                <div class="col-md-4">
+                    <label for="pointValue" class="form-label">Points per Win</label>
+                    <input type="number" class="form-control" id="pointValue" name="point_value"
+                           value="{{ selected_round.point_value }}" min="1">
+                </div>
                 {% endif %}
-            </label>
+                <div class="col-md-4">
+                    <label class="form-label">Round Status</label>
+                    <div class="round-status-badge {% if selected_round.closed %}closed{% else %}open{% endif %}">
+                        {% if selected_round.closed %}
+                        <i class="fas fa-lock"></i> Closed
+                        {% else %}
+                        <i class="fas fa-lock-open"></i> Open for Picks
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Winners -->
+        <div class="mm-card mb-4">
+            <div class="mm-card-header">
+                <i class="fas fa-trophy"></i>
+                {% if selected_round.closed %}Select Winners{% else %}Set Up Games{% endif %}
+            </div>
+            <div class="games-admin-grid">
+                {% for game in selected_round.games %}
+                <div class="game-admin-card">
+                    <div class="game-header">
+                        <span class="game-number">Game {{ loop.index }}</span>
+                        {% if selected_round.name != 'First Round (Round of 64)' %}
+                        <span class="clear-text" onclick="clearWinner({{ game.id }})">Clear</span>
+                        {% endif %}
+                    </div>
+
+                    {% if selected_round.name == 'First Round (Round of 64)' %}
+                    <!-- First round: simple radio buttons for winner -->
+                    <div class="teams-admin">
+                        <label class="team-admin-option">
+                            <input type="radio" name="game{{ game.id }}_winner" value="{{ game.team1 }}"
+                                   {% if game.winner == game.team1 %}checked{% endif %}>
+                            <span class="team-label">{{ game.team1 }}</span>
+                        </label>
+                        <span class="vs-text">vs</span>
+                        <label class="team-admin-option">
+                            <input type="radio" name="game{{ game.id }}_winner" value="{{ game.team2 }}"
+                                   {% if game.winner == game.team2 %}checked{% endif %}>
+                            <span class="team-label">{{ game.team2 }}</span>
+                        </label>
+                        {% if not selected_round.closed %}
+                        <label class="team-admin-option clear-option">
+                            <input type="radio" name="game{{ game.id }}_winner" value=""
+                                   {% if not game.winner %}checked{% endif %}>
+                            <span class="team-label">Clear</span>
+                        </label>
+                        {% endif %}
+                    </div>
+                    <!-- Hidden input for clear when closed -->
+                    <input type="hidden" name="game{{ game.id }}_clear" id="clear{{ game.id }}" value="">
+
+                    {% elif selected_round.closed %}
+                    <!-- Later rounds CLOSED: click team to select winner -->
+                    <div class="teams-admin">
+                        <label class="team-admin-option {% if not game.team1 %}disabled{% endif %}">
+                            <input type="radio" name="game{{ game.id }}_winner" value="{{ game.team1 }}"
+                                   {% if game.winner == game.team1 %}checked{% endif %}
+                                   {% if not game.team1 %}disabled{% endif %}>
+                            <span class="team-label">{{ game.team1 or 'TBD' }}</span>
+                        </label>
+                        <span class="vs-text">vs</span>
+                        <label class="team-admin-option {% if not game.team2 %}disabled{% endif %}">
+                            <input type="radio" name="game{{ game.id }}_winner" value="{{ game.team2 }}"
+                                   {% if game.winner == game.team2 %}checked{% endif %}
+                                   {% if not game.team2 %}disabled{% endif %}>
+                            <span class="team-label">{{ game.team2 or 'TBD' }}</span>
+                        </label>
+                    </div>
+                    <!-- Hidden inputs to preserve team names -->
+                    <input type="hidden" name="game{{ game.id }}_team1_select" value="{{ game.team1 }}">
+                    <input type="hidden" name="game{{ game.id }}_team2_select" value="{{ game.team2 }}">
+                    <input type="hidden" name="game{{ game.id }}_clear" id="clear{{ game.id }}" value="">
+
+                    {% else %}
+                    <!-- Later rounds OPEN: click team to change team name -->
+                    <div class="teams-admin-select">
+                        <div class="team-select-group">
+                            <select name="game{{ game.id }}_team1_select" class="form-select team-select">
+                                <option value="">Select Team 1</option>
+                                {% for winner in prev_winners %}
+                                <option value="{{ winner }}" {% if game.team1 == winner %}selected{% endif %}>{{ winner }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <span class="vs-text">vs</span>
+                        <div class="team-select-group">
+                            <select name="game{{ game.id }}_team2_select" class="form-select team-select">
+                                <option value="">Select Team 2</option>
+                                {% for winner in prev_winners %}
+                                <option value="{{ winner }}" {% if game.team2 == winner %}selected{% endif %}>{{ winner }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Hidden winner input (no winner selection when open) -->
+                    <input type="hidden" name="game{{ game.id }}_winner" value="{{ game.winner or '' }}">
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- User Pick Status -->
+        <div class="mm-card mb-4">
+            <div class="mm-card-header">
+                <i class="fas fa-users"></i>
+                User Pick Status
+            </div>
+            <div class="user-status-grid">
+                {% for user_data in users_with_picks %}
+                <div class="user-status-item {% if user_data.has_all_picks %}complete{% else %}incomplete{% endif %}">
+                    <img src="{{ url_for('static', filename=user_data.user.picture) }}" class="user-status-avatar"
+                         onerror="this.src='https://ui-avatars.com/api/?name={{ user_data.user.username }}&size=40'">
+                    <span class="user-status-name">{{ user_data.user.username }}</span>
+                    <span class="user-status-badge">
+                        {% if user_data.has_all_picks %}
+                        <i class="fas fa-check-circle text-success"></i>
+                        {% else %}
+                        <i class="fas fa-exclamation-circle text-warning"></i> {{ user_data.picks_count }}/{{ selected_round.games.count() }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="admin-actions">
+            <button type="submit" class="btn btn-mm-primary btn-lg">
+                <i class="fas fa-save me-2"></i>Save Changes
+            </button>
             {% if selected_round.name != 'Championship' %}
-                <input type="number" class="form-control" id="pointValue" name="point_value" min="1" value="{{ selected_round.point_value }}">
+            <button type="submit" name="next_round" value="true" class="btn btn-mm-secondary btn-lg">
+                <i class="fas fa-arrow-right me-2"></i>Create Next Round
+            </button>
             {% endif %}
         </div>
-        <h4>Select Game Winners</h4>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Team 1</th>
-                        <th>Team 2</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for game in selected_round.games %}
-                    <tr>
-                        <td class="pick-cell">
-                            {% if selected_round.name == 'First Round (Round of 64)' %}
-                                <div class="form-check">
-                                    <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team1 }}"
-                                        id="game{{ game.id }}_team1"
-                                        {% if game.winner == game.team1 %}checked{% endif %}>
-                                    <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
-                                </div>
-                            {% else %}
-                                <div class="d-flex align-items-center">
-                                    <div class="form-check me-2">
-                                        <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team1 }}"
-                                            id="game{{ game.id }}_team1"
-                                            {% if game.winner == game.team1 %}checked{% endif %}>
-                                        <label class="form-check-label" for="game{{ game.id }}_team1"> </label>
-                                    </div>
-                                    <select name="game{{ game.id }}_team1_select" class="form-select mb-2">
-                                        <option value="">Select Team 1</option>
-                                        {% for winner in prev_winners %}
-                                            <option value="{{ winner }}" {% if game.team1 == winner %}selected{% endif %}>
-                                                {{ winner }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            {% endif %}
-                        </td>
-                        <td class="pick-cell">
-                            {% if selected_round.name == 'First Round (Round of 64)' %}
-                                <div class="form-check">
-                                    <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team2 }}"
-                                        id="game{{ game.id }}_team2"
-                                        {% if game.winner == game.team2 %}checked{% endif %}>
-                                    <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
-                                </div>
-                            {% else %}
-                                <div class="d-flex align-items-center">
-                                    <div class="form-check me-2">
-                                        <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team2 }}"
-                                            id="game{{ game.id }}_team2"
-                                            {% if game.winner == game.team2 %}checked{% endif %}>
-                                        <label class="form-check-label" for="game{{ game.id }}_team2"> </label>
-                                    </div>
-                                    <select name="game{{ game.id }}_team2_select" class="form-select mb-2">
-                                        <option value="">Select Team 2</option>
-                                        {% for winner in prev_winners %}
-                                            <option value="{{ winner }}" {% if game.team2 == winner %}selected{% endif %}>
-                                                {{ winner }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <button type="submit" class="btn btn-primary me-2">Save Round</button>
-        <button type="submit" class="btn btn-success me-2" name="next_round" value="true" data-bs-toggle="tooltip" title="Creates next round if all winners are set">Next Round <i class="fas fa-arrow-right"></i></button>
     </form>
-    <h4 class="mt-4">Users with Picks for {{ selected_round.name }}</h4>
-    <div class="table-responsive">
-        <table class="table table-striped">
-            <thead class="table-dark">
-                <tr>
-                    <th>Username</th>
-                    <th class="text-center">Picks Completed <i class="fas fa-check-circle"></i></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users_with_picks %}
-                <tr>
-                    <td>{{ user.username }}</td>
-                    <td class="text-center">
-                        <i class="fas fa-{{ 'check' if user.has_picks else 'times' }}-circle text-{{ 'success' if user.has_picks else 'danger' }}"></i>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <script>
-        // Show loading indicator when round changes
-        function showLoading() {
-            document.getElementById('loading-indicator').classList.remove('d-none');
-        }
+    {% endif %}
+</div>
+{% endblock %}
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
+{% block extra_css %}
+<style>
+    .round-status-badge { padding: 0.75rem 1.5rem; border-radius: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; }
+    .round-status-badge.closed { background: rgba(81, 207, 102, 0.15); color: var(--mm-success); }
+    .round-status-badge.open { background: rgba(255, 107, 53, 0.15); color: var(--mm-primary); }
+
+    /* Game Grid - matches pick.html */
+    .games-admin-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .game-admin-card {
+        background: var(--mm-dark);
+        border: 1px solid var(--mm-border);
+        border-radius: 10px;
+        padding: 0.75rem;
+    }
+
+    .game-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .game-number {
+        font-size: 0.7rem;
+        color: var(--mm-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .clear-text {
+        font-size: 0.7rem;
+        color: var(--mm-text-muted);
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+
+    .clear-text:hover {
+        color: var(--mm-danger);
+    }
+
+    /* Team Selection - matches pick.html styling */
+    .teams-admin {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .team-admin-option {
+        flex: 1;
+        cursor: pointer;
+    }
+
+    .team-admin-option input {
+        display: none;
+    }
+
+    .team-admin-option .team-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 40px;
+        padding: 0.4rem;
+        background: var(--mm-card);
+        border: 2px solid var(--mm-border);
+        border-radius: 6px;
+        text-align: center;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        font-size: 0.8rem;
+        line-height: 1.1;
+    }
+
+    .team-admin-option:hover .team-label {
+        border-color: var(--mm-primary);
+    }
+
+    .team-admin-option input:checked + .team-label {
+        background: rgba(255, 107, 53, 0.15);
+        border-color: var(--mm-primary);
+        color: var(--mm-primary);
+    }
+
+    .team-admin-option.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .team-admin-option.disabled:hover .team-label {
+        border-color: var(--mm-border);
+    }
+
+    .clear-option {
+        flex: 0 0 auto;
+        width: auto;
+    }
+
+    .clear-option .team-label {
+        color: var(--mm-text-muted);
+        font-size: 0.75rem;
+        padding: 0.4rem 0.75rem;
+    }
+
+    .vs-text {
+        font-family: 'Orbitron', monospace;
+        font-size: 0.65rem;
+        color: var(--mm-text-muted);
+        flex-shrink: 0;
+    }
+
+    /* Dropdown selects for open rounds */
+    .teams-admin-select {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .team-select-group {
+        flex: 1;
+    }
+
+    .team-select-group .form-select {
+        font-size: 0.8rem;
+        padding: 0.5rem;
+        height: 40px;
+        background: var(--mm-card);
+        border: 2px solid var(--mm-border);
+        border-radius: 6px;
+    }
+
+    .team-select-group .form-select:focus {
+        border-color: var(--mm-primary);
+    }
+
+    /* User Status Grid */
+    .user-status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .user-status-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: var(--mm-dark);
+        border-radius: 10px;
+        border: 1px solid var(--mm-border);
+        transition: all 0.3s ease;
+    }
+
+    .user-status-item:hover {
+        border-color: var(--mm-primary);
+    }
+
+    .user-status-item.complete {
+        border-left: 3px solid var(--mm-success);
+    }
+
+    .user-status-item.incomplete {
+        border-left: 3px solid var(--mm-accent);
+    }
+
+    .user-status-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .user-status-name {
+        flex: 1;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+
+    .user-status-badge {
+        font-size: 0.8rem;
+    }
+
+    .admin-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 1rem 0;
+    }
+
+    @media (max-width: 576px) {
+        .games-admin-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function clearWinner(gameId) {
+        // Uncheck all radio buttons for this game
+        document.querySelectorAll(`input[name="game${gameId}_winner"]`).forEach(input => {
+            input.checked = false;
         });
-    </script>
-    <style>
-        .pick-cell { cursor: pointer; padding: 10px; }
-        .pick-cell:hover { background-color: #f0f0f0; }
-    </style>
-{% endif %}
+        // Reset dropdowns for team selection
+        const team1Select = document.querySelector(`select[name="game${gameId}_team1_select"]`);
+        const team2Select = document.querySelector(`select[name="game${gameId}_team2_select"]`);
+        if (team1Select) team1Select.value = '';
+        if (team2Select) team2Select.value = '';
+        // Create/update hidden input to send empty winner value
+        const form = document.querySelector('form');
+        let hiddenInput = document.querySelector(`input[name="game${gameId}_winner"][type="hidden"]`);
+        if (!hiddenInput) {
+            hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = `game${gameId}_winner`;
+            form.appendChild(hiddenInput);
+        }
+        hiddenInput.value = '';
+    }
+</script>
 {% endblock %}

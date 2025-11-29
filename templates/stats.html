@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Statistics - March Madness 2026{% endblock %}
+
+{% block content %}
+<div class="stats-page">
+    <div class="text-center mb-5 animate__animated animate__fadeIn">
+        <h1 class="section-header justify-content-center">
+            <i class="fas fa-chart-bar"></i>
+            Tournament Statistics
+        </h1>
+        <p class="text-muted">Deep dive into the numbers</p>
+    </div>
+
+    <!-- Tournament Overview -->
+    <div class="row g-4 mb-5 stagger">
+        <div class="col-6 col-md-3">
+            <div class="stat-card glow-orange">
+                <div class="stat-icon"><i class="fas fa-basketball"></i></div>
+                <div class="stat-value">{{ tournament_stats.total_games }}</div>
+                <div class="stat-label">Total Games</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card glow-teal">
+                <div class="stat-icon"><i class="fas fa-check-double"></i></div>
+                <div class="stat-value">{{ tournament_stats.completed_games }}</div>
+                <div class="stat-label">Completed</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card glow-purple">
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+                <div class="stat-value">{{ tournament_stats.total_users }}</div>
+                <div class="stat-label">Players</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-hand-pointer"></i></div>
+                <div class="stat-value">{{ tournament_stats.total_picks }}</div>
+                <div class="stat-label">Total Picks</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Points Chart -->
+        <div class="col-lg-8">
+            <div class="mm-card">
+                <div class="mm-card-header">
+                    <i class="fas fa-chart-line"></i>
+                    Points by Player
+                </div>
+                <div style="height: 400px;">
+                    <canvas id="pointsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Accuracy Leaderboard -->
+        <div class="col-lg-4">
+            <div class="mm-card">
+                <div class="mm-card-header">
+                    <i class="fas fa-bullseye"></i>
+                    Accuracy Rankings
+                </div>
+                <div class="accuracy-list">
+                    {% for user in users|sort(attribute='accuracy', reverse=true) %}
+                    <div class="accuracy-item">
+                        <span class="rank">#{{ loop.index }}</span>
+                        <img src="{{ url_for('static', filename=user.picture) }}" class="acc-avatar"
+                             onerror="this.src='https://ui-avatars.com/api/?name={{ user.username }}&size=32'">
+                        <span class="name">{{ user.username }}</span>
+                        <div class="acc-bar-container">
+                            <div class="acc-bar" style="width: {{ user.accuracy }}%;"></div>
+                        </div>
+                        <span class="acc-value">{{ user.accuracy }}%</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Points by Round -->
+    {% if rounds %}
+    <div class="mm-card mt-4">
+        <div class="mm-card-header">
+            <i class="fas fa-table"></i>
+            Points Breakdown by Round
+        </div>
+        <div class="table-responsive">
+            <table class="table mm-table">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        {% for r in rounds %}
+                        <th class="text-center">{{ r.short_name }}</th>
+                        {% endfor %}
+                        <th class="text-center">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in user_round_stats %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <img src="{{ url_for('static', filename=stat.user.picture) }}" class="table-avatar"
+                                     onerror="this.src='https://ui-avatars.com/api/?name={{ stat.user.username }}&size=30'">
+                                {{ stat.user.username }}
+                            </div>
+                        </td>
+                        {% for r in rounds %}
+                        <td class="text-center">{{ stat.rounds[r.id].points }}</td>
+                        {% endfor %}
+                        <td class="text-center fw-bold" style="color: var(--mm-primary);">{{ stat.total_points }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Upset Picks -->
+    {% if upset_picks %}
+    <div class="mm-card mt-4">
+        <div class="mm-card-header">
+            <i class="fas fa-bolt"></i>
+            Best Upset Picks
+        </div>
+        <p class="text-muted mb-3">Players who correctly picked against the crowd</p>
+        <div class="upset-list">
+            {% for pick in upset_picks %}
+            <div class="upset-item">
+                <img src="{{ url_for('static', filename=pick.user.picture) }}" class="upset-avatar"
+                     onerror="this.src='https://ui-avatars.com/api/?name={{ pick.user.username }}&size=40'">
+                <div class="upset-info">
+                    <div class="upset-user">{{ pick.user.username }}</div>
+                    <div class="upset-game">{{ pick.game.team1 }} vs {{ pick.game.team2 }}</div>
+                </div>
+                <div class="upset-winner">
+                    <i class="fas fa-trophy"></i> {{ pick.game.winner }}
+                </div>
+                <div class="upset-stat">
+                    <span class="upset-pct">{{ pick.minority_pct }}%</span>
+                    <span class="upset-label">picked this</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-icon { font-size: 1.5rem; color: var(--mm-primary); margin-bottom: 0.5rem; }
+    .accuracy-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .accuracy-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--mm-dark); border-radius: 8px; }
+    .accuracy-item .rank { width: 25px; font-weight: 700; color: var(--mm-text-muted); font-size: 0.85rem; }
+    .acc-avatar { width: 32px; height: 32px; border-radius: 50%; }
+    .accuracy-item .name { flex: 1; font-size: 0.9rem; }
+    .acc-bar-container { width: 60px; height: 8px; background: var(--mm-border); border-radius: 4px; overflow: hidden; }
+    .acc-bar { height: 100%; background: var(--mm-gradient-3); border-radius: 4px; }
+    .acc-value { font-family: 'Orbitron', monospace; font-size: 0.85rem; color: var(--mm-secondary); min-width: 45px; text-align: right; }
+    .table-avatar { width: 30px; height: 30px; border-radius: 50%; }
+    .upset-list { display: flex; flex-direction: column; gap: 1rem; }
+    .upset-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--mm-dark); border-radius: 12px; border-left: 4px solid var(--mm-success); }
+    .upset-avatar { width: 40px; height: 40px; border-radius: 50%; }
+    .upset-info { flex: 1; }
+    .upset-user { font-weight: 600; }
+    .upset-game { font-size: 0.85rem; color: var(--mm-text-muted); }
+    .upset-winner { color: var(--mm-success); font-weight: 500; }
+    .upset-stat { text-align: right; }
+    .upset-pct { display: block; font-family: 'Orbitron', monospace; font-size: 1.25rem; color: var(--mm-primary); }
+    .upset-label { font-size: 0.75rem; color: var(--mm-text-muted); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const ctx = document.getElementById('pointsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [{% for u in users %}'{{ u.username }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+            datasets: [{
+                label: 'Total Points',
+                data: [{% for u in users %}{{ u.total_points }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: 'rgba(255, 107, 53, 0.6)',
+                borderColor: 'rgba(255, 107, 53, 1)',
+                borderWidth: 2,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+</script>
+{% endblock %}

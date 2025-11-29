@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Tournament Bracket - March Madness 2026{% endblock %}
+
+{% block content %}
+<div class="bracket-page">
+    <!-- Header -->
+    <div class="text-center mb-4 animate__animated animate__fadeIn">
+        <h1 class="section-header justify-content-center">
+            <i class="fas fa-sitemap"></i>
+            Tournament Bracket
+        </h1>
+        <p class="text-muted">Track the tournament progression</p>
+    </div>
+
+    <!-- Round Selector -->
+    <div class="round-tabs mb-4 animate__animated animate__fadeInUp">
+        <div class="btn-group flex-wrap w-100" role="group">
+            {% for round_data in bracket_data %}
+            <button type="button"
+                    class="btn btn-round-tab {% if loop.first %}active{% endif %}"
+                    data-round="{{ round_data.id }}">
+                {{ round_data.short_name }}
+                {% if round_data.closed %}
+                <i class="fas fa-check-circle ms-1 text-success"></i>
+                {% endif %}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Bracket Content -->
+    {% for round_data in bracket_data %}
+    <div class="round-content {% if loop.first %}active{% endif %}" id="round{{ round_data.id }}">
+        <div class="mm-card">
+            <div class="mm-card-header">
+                <i class="fas fa-basketball"></i>
+                {{ round_data.name }}
+                <span class="badge badge-mm badge-gold ms-2">{{ round_data.point_value }} pts</span>
+            </div>
+
+            <div class="games-bracket">
+                {% for game in round_data.games %}
+                <div class="bracket-game {% if game.winner %}completed{% endif %} {% if game.user_pick == game.winner and game.winner %}correct{% elif game.user_pick and game.winner and game.user_pick != game.winner %}incorrect{% endif %}">
+                    <div class="game-header">
+                        <span class="game-label">Game {{ loop.index }}</span>
+                        {% if game.region %}
+                        <span class="region-badge">{{ game.region }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="matchup">
+                        <div class="bracket-team {% if game.winner == game.team1 %}winner{% endif %} {% if game.user_pick == game.team1 %}user-pick{% endif %}">
+                            {% if game.team1_seed %}<span class="seed">{{ game.team1_seed }}</span>{% endif %}
+                            <span class="team-name">{{ game.team1 }}</span>
+                            {% if game.winner == game.team1 %}<i class="fas fa-trophy winner-icon"></i>{% endif %}
+                            {% if game.user_pick == game.team1 %}<span class="pick-indicator">Your Pick</span>{% endif %}
+                        </div>
+                        <div class="bracket-team {% if game.winner == game.team2 %}winner{% endif %} {% if game.user_pick == game.team2 %}user-pick{% endif %}">
+                            {% if game.team2_seed %}<span class="seed">{{ game.team2_seed }}</span>{% endif %}
+                            <span class="team-name">{{ game.team2 }}</span>
+                            {% if game.winner == game.team2 %}<i class="fas fa-trophy winner-icon"></i>{% endif %}
+                            {% if game.user_pick == game.team2 %}<span class="pick-indicator">Your Pick</span>{% endif %}
+                        </div>
+                    </div>
+
+                    {% if round_data.closed and game.distribution %}
+                    <div class="pick-distribution">
+                        <div class="distribution-bar">
+                            <div class="distribution-fill team1" style="width: {{ game.distribution.team1.pct }}%;">{{ game.distribution.team1.pct }}%</div>
+                            <div class="distribution-fill team2" style="width: {{ game.distribution.team2.pct }}%;">{{ game.distribution.team2.pct }}%</div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if game.winner and game.user_pick %}
+                    <div class="result-badge {% if game.user_pick == game.winner %}correct{% else %}incorrect{% endif %}">
+                        {% if game.user_pick == game.winner %}<i class="fas fa-check"></i> +{{ round_data.point_value }}{% else %}<i class="fas fa-times"></i> 0{% endif %}
+                    </div>
+                    {% elif not game.winner %}
+                    <div class="result-badge pending"><i class="fas fa-clock"></i> TBD</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-round-tab { background: var(--mm-dark); border: 1px solid var(--mm-border); color: var(--mm-text); padding: 0.75rem 1.5rem; transition: all 0.3s ease; }
+    .btn-round-tab:hover { background: rgba(255, 107, 53, 0.1); border-color: var(--mm-primary); color: var(--mm-text); }
+    .btn-round-tab.active { background: var(--mm-gradient-gold); border-color: var(--mm-primary); color: #000; }
+    .round-content { display: none; }
+    .round-content.active { display: block; }
+    .games-bracket { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; padding: 1rem 0; }
+    .bracket-game { background: var(--mm-dark); border: 1px solid var(--mm-border); border-radius: 12px; padding: 1rem; position: relative; transition: all 0.3s ease; }
+    .bracket-game:hover { border-color: var(--mm-primary); }
+    .bracket-game.correct { border-color: var(--mm-success); box-shadow: 0 0 20px rgba(81, 207, 102, 0.2); }
+    .bracket-game.incorrect { border-color: var(--mm-danger); }
+    .game-header { display: flex; justify-content: space-between; margin-bottom: 0.75rem; }
+    .game-label { font-size: 0.8rem; color: var(--mm-text-muted); }
+    .matchup { display: flex; flex-direction: column; gap: 0.5rem; }
+    .bracket-team { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: var(--mm-card); border-radius: 8px; }
+    .seed { font-size: 0.75rem; color: var(--mm-text-muted); min-width: 20px; }
+    .team-name { flex: 1; font-weight: 500; }
+    .winner-icon { color: #f5af19; }
+    .pick-indicator { font-size: 0.65rem; padding: 2px 6px; background: var(--mm-gradient-gold); color: #000; border-radius: 8px; font-weight: 600; }
+    .pick-distribution { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--mm-border); }
+    .distribution-bar { display: flex; height: 20px; border-radius: 10px; overflow: hidden; }
+    .distribution-fill { display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; }
+    .distribution-fill.team1 { background: rgba(255, 107, 53, 0.6); }
+    .distribution-fill.team2 { background: rgba(78, 205, 196, 0.6); }
+    .result-badge { position: absolute; top: -8px; right: 10px; padding: 3px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+    .result-badge.correct { background: var(--mm-success); color: #000; }
+    .result-badge.incorrect { background: var(--mm-danger); color: #fff; }
+    .result-badge.pending { background: var(--mm-border); color: var(--mm-text-muted); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('.btn-round-tab').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.btn-round-tab').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            document.querySelectorAll('.round-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('round' + this.dataset.round).classList.add('active');
+        });
+    });
+</script>
+{% endblock %}

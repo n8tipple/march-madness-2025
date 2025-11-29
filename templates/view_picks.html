@@ -1,264 +1,228 @@
 {% extends "base.html" %}
+{% block title %}View Picks - March Madness 2026{% endblock %}
+
 {% block content %}
-<h2 class="text-primary mb-3">View Picks for Closed Rounds</h2>
+<div class="view-picks-page">
+    <div class="text-center mb-4 animate__animated animate__fadeIn">
+        <h1 class="section-header justify-content-center">
+            <i class="fas fa-eye"></i>
+            View All Picks
+        </h1>
+        <p class="text-muted">See how everyone picked for each round</p>
+    </div>
 
-<!-- Define round name mapping -->
-{% set round_name_map = {
-    'First Round (Round of 64)': 'First Round',
-    'Second Round (Round of 32)': 'Second Round',
-    'Sweet 16': 'Sweet 16',
-    'Elite Eight': 'Elite 8',
-    'Final Four': 'Final 4',
-    'Championship': 'Championship'
-} %}
-
-<!-- Define full name mapping for titles -->
-{% set full_name_map = {
-    'First Round (Round of 64)': 'First Round (Round of 64)',
-    'Second Round (Round of 32)': 'Second Round (Round of 32)',
-    'Sweet 16': 'Sweet 16',
-    'Elite Eight': 'Elite 8',
-    'Final Four': 'Final 4',
-    'Championship': 'Championship'
-} %}
-
-<!-- Round Selector Buttons -->
-<div class="d-block mb-4">
-    <div class="btn-group flex-wrap w-100" role="group">
-        {% set round_order = ['Championship', 'Final 4', 'Elite 8', 'Sweet 16', 'Second Round', 'First Round'] %}
-        {% for round_name in round_order %}
-            {% for round in closed_rounds if round.name in round_name_map and round_name_map[round.name] == round_name %}
-            <button class="btn btn-outline-primary {{ 'active' if round == closed_rounds[0] }}" type="button" data-round-id="{{ round.id }}"
-                onclick="toggleRound('{{ round.id }}')">
-                {{ round_name }}
+    <!-- Round Selector -->
+    <div class="round-tabs mb-4">
+        <div class="btn-group flex-wrap w-100" role="group">
+            {% for data in rounds_data %}
+            <button type="button" class="btn btn-round-tab {% if loop.first %}active{% endif %}" data-round="{{ data.round.id }}">
+                {{ data.round.short_name }}
             </button>
             {% endfor %}
-        {% endfor %}
-    </div>
-</div>
-
-<!-- View Toggle Tabs -->
-<div class="d-block mb-4">
-    <div class="btn-group w-100" role="group">
-        <button class="btn btn-outline-primary view-tab active" data-view="summary">Summary View</button>
-        <button class="btn btn-outline-primary view-tab" data-view="detailed">Detailed View</button>
-    </div>
-</div>
-
-<!-- Summary View -->
-<div id="summary-view" class="view-content">
-    {% for round in closed_rounds %}
-    <div class="summary-round collapse {{ 'show' if round == closed_rounds[0] }}" id="round{{ round.id }}">
-        <h3>{{ full_name_map[round.name] }}</h3>
-        <div class="grid-container">
-            <!-- Header Row -->
-            <div class="grid-header sticky-top" style="grid-row: 1; grid-column: 1; min-height: 40px;">Game</div>
-            {% for user, total in user_totals_by_round[round.id] %}
-            <div class="grid-header sticky-top rotated-text" style="grid-row: 1; grid-column: {{ loop.index + 1 }}; min-height: 40px;">
-                <span>{{ user.username }}</span>
-            </div>
-            {% endfor %}
-            <!-- Game Rows -->
-            {% for game in games_by_round[round.id] %}
-            {% set game_row = loop.index + 2 %}
-            <div class="grid-game sticky-left" style="grid-row: {{ game_row }}; grid-column: 1; min-height: 40px;">{{ game.team1 }} vs {{ game.team2 }}</div>
-            {% for user, total in user_totals_by_round[round.id] %}
-            <div class="grid-cell {% if points_by_user_game[round.id][user.id][game.id] > 0 %}table-success{% else %}table-danger{% endif %}" 
-                 style="grid-row: {{ game_row }}; grid-column: {{ loop.index + 1 }}; min-height: 40px;">
-                {{ points_by_user_game[round.id][user.id][game.id] }}
-            </div>
-            {% endfor %}
-            {% endfor %}
-            <!-- Total Row -->
-            {% set total_row = games_by_round[round.id]|length + 3 %}
-            <div class="grid-total table-dark" style="grid-row: {{ total_row }}; grid-column: 1; min-height: 40px;"><strong>Round Total</strong></div>
-            {% for user, total in user_totals_by_round[round.id] %}
-            <div class="grid-total table-dark" style="grid-row: {{ total_row }}; grid-column: {{ loop.index + 1 }}; min-height: 40px;"><strong>{{ total }}</strong></div>
-            {% endfor %}
         </div>
     </div>
-    {% endfor %}
-</div>
 
-<!-- Detailed View -->
-<div id="detailed-view" class="view-content hidden">
-    {% for round in closed_rounds %}
-    <div class="detailed-round collapse {{ 'show' if round == closed_rounds[0] }}" id="round{{ round.id }}">
-        <h3>{{ full_name_map[round.name] }}</h3>
-        <div class="row mt-3">
-            {% for game in games_by_round[round.id] %}
-            <div class="col-md-6">
-                <div class="card mb-3 shadow-sm">
-                    <div class="card-header bg-dark text-white">
-                        <h5>{{ game.team1 }} vs {{ game.team2 }}</h5>
-                    </div>
-                    <div class="card-body">
-                        <p><strong>Winner:</strong> {{ game.winner if game.winner else 'Not set' }}</p>
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th style="width: 30%;">User</th> <!-- Reduced from 40% to 30% -->
-                                    <th style="width: 45%;">Pick</th> <!-- Increased from 40% to 45% -->
-                                    <th style="width: 25%;" class="text-center">Points</th> <!-- Increased from 20% to 25% -->
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for pick in game.picks %}
-                                <tr class="{{ 'table-success' if pick.picked_team == game.winner else 'table-danger' if game.winner else '' }}">
-                                    <td>{{ pick.user.username }}</td>
-                                    <td>{{ pick.picked_team }}</td>
-                                    <td class="text-center">
-                                        {% if game.winner %}
-                                            {% if pick.picked_team == game.winner %}
-                                                {% if round.name == 'Championship' %}
-                                                    {{ pick.wager }}
-                                                {% else %}
-                                                    {{ round.point_value }}
-                                                {% endif %}
-                                            {% elif round.name == 'Championship' %}
-                                                -{{ pick.wager }}
-                                            {% else %}
-                                                0
-                                            {% endif %}
-                                        {% else %}
-                                            0
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                {% if not game.picks %}
-                                    <tr><td colspan="3" class="text-muted">No picks made</td></tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
+    <!-- View Toggle -->
+    <div class="view-toggle mb-4">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-view-toggle active" data-view="grid">
+                <i class="fas fa-th"></i> Grid View
+            </button>
+            <button type="button" class="btn btn-view-toggle" data-view="detailed">
+                <i class="fas fa-list"></i> Detailed View
+            </button>
+        </div>
+    </div>
+
+    {% for data in rounds_data %}
+    <div class="round-picks {% if loop.first %}active{% endif %}" id="picks{{ data.round.id }}">
+        <!-- Round Stats -->
+        <div class="round-stats-bar mb-4">
+            <div class="row g-3">
+                {% for ut in data.user_totals[:3] %}
+                <div class="col-4">
+                    <div class="top-scorer {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% else %}bronze{% endif %}">
+                        <span class="rank">#{{ loop.index }}</span>
+                        <span class="name">{{ ut.user.username }}</span>
+                        <span class="pts">{{ ut.total }} pts</span>
                     </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
+        </div>
+
+        <!-- Grid View -->
+        <div class="view-content grid-view active">
+            <div class="picks-grid-container">
+                <table class="picks-grid">
+                    <thead>
+                        <tr>
+                            <th class="game-col">Game</th>
+                            {% for ut in data.user_totals %}
+                            <th class="user-col">
+                                <div class="user-header">
+                                    <img src="{{ url_for('static', filename=ut.user.picture) }}"
+                                         onerror="this.src='https://ui-avatars.com/api/?name={{ ut.user.username }}&size=30'"
+                                         class="user-avatar">
+                                    <span class="user-name">{{ ut.user.username }}</span>
+                                </div>
+                            </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for game in data.games %}
+                        <tr>
+                            <td class="game-col">
+                                <div class="game-info">
+                                    <span class="teams">{{ game.team1 }} vs {{ game.team2 }}</span>
+                                    <span class="winner"><i class="fas fa-trophy"></i> {{ game.winner or 'TBD' }}</span>
+                                </div>
+                            </td>
+                            {% for ut in data.user_totals %}
+                            {% set pick = data.picks_lookup.get(game.id, {}).get(ut.user.id) %}
+                            <td class="pick-cell {% if pick and pick.picked_team == game.winner %}correct{% elif pick and game.winner %}incorrect{% endif %}">
+                                {% if pick %}
+                                <span class="pick-team">{{ pick.picked_team }}</span>
+                                <span class="pick-pts">{{ pick.points if pick.points else 0 }}</span>
+                                {% else %}
+                                <span class="no-pick">-</span>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                        <tr class="totals-row">
+                            <td class="game-col"><strong>Round Total</strong></td>
+                            {% for ut in data.user_totals %}
+                            <td class="total-cell"><strong>{{ ut.total }}</strong></td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Detailed View -->
+        <div class="view-content detailed-view">
+            <div class="row g-4">
+                {% for game in data.games %}
+                <div class="col-md-6">
+                    <div class="game-detail-card">
+                        <div class="game-detail-header">
+                            <h5>{{ game.team1 }} vs {{ game.team2 }}</h5>
+                            <span class="badge {% if game.winner %}badge-gold{% else %}bg-secondary{% endif %}">
+                                {% if game.winner %}<i class="fas fa-trophy me-1"></i>{{ game.winner }}{% else %}Pending{% endif %}
+                            </span>
+                        </div>
+                        <div class="picks-list">
+                            {% for ut in data.user_totals %}
+                            {% set pick = data.picks_lookup.get(game.id, {}).get(ut.user.id) %}
+                            <div class="pick-row {% if pick and pick.picked_team == game.winner %}correct{% elif pick and game.winner %}incorrect{% endif %}">
+                                <div class="pick-user">
+                                    <img src="{{ url_for('static', filename=ut.user.picture) }}" class="pick-avatar"
+                                         onerror="this.src='https://ui-avatars.com/api/?name={{ ut.user.username }}&size=24'">
+                                    <span>{{ ut.user.username }}</span>
+                                </div>
+                                <div class="pick-value">
+                                    {% if pick %}{{ pick.picked_team }}{% else %}<span class="text-muted">No pick</span>{% endif %}
+                                </div>
+                                <div class="pick-points">
+                                    {% if pick %}{{ pick.points }} pts{% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
     {% endfor %}
 </div>
+{% endblock %}
 
-<script>
-    // Toggle Rounds
-    function toggleRound(roundId) {
-        const allRounds = document.querySelectorAll('[id^="round"]');
-        allRounds.forEach(round => {
-            round.classList.remove('show');
-        });
-        document.querySelector(`#round${roundId}.detailed-round`).classList.add('show');
-        document.querySelector(`#round${roundId}.summary-round`).classList.add('show');
-
-        // Update active round button
-        document.querySelectorAll('.btn-group[role="group"] button[data-round-id]').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.getAttribute('data-round-id') === roundId) {
-                btn.classList.add('active');
-            }
-        });
-    }
-
-    // Toggle Views
-    document.querySelectorAll('.view-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-
-            const view = this.getAttribute('data-view');
-            document.querySelectorAll('.view-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-            document.getElementById(`${view}-view`).classList.remove('hidden');
-
-            // Ensure the currently visible round stays in sync
-            const visibleRound = document.querySelector('.detailed-round.show, .summary-round.show');
-            if (visibleRound) {
-                const roundId = visibleRound.id.replace('round', '');
-                toggleRound(roundId);
-            }
-        });
-    });
-
-    // Show most recent round by default
-    if (document.querySelector('[id^="round"]')) {
-        const mostRecentRoundId = document.querySelector('[id^="round"]').id.replace('round', '');
-        toggleRound(mostRecentRoundId);
-    }
-</script>
-
+{% block extra_css %}
 <style>
-    /* General Table Styles */
-    table {
-        table-layout: fixed;
-        width: 100%;
-    }
-    td {
-        word-wrap: break-word;
-        vertical-align: middle;
-    }
+    .btn-round-tab, .btn-view-toggle { background: var(--mm-dark); border: 1px solid var(--mm-border); color: var(--mm-text); padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+    .btn-round-tab:hover, .btn-view-toggle:hover { background: rgba(255, 107, 53, 0.1); border-color: var(--mm-primary); color: var(--mm-text); }
+    .btn-round-tab.active, .btn-view-toggle.active { background: var(--mm-gradient-gold); color: #000; }
+    .round-picks, .view-content { display: none; }
+    .round-picks.active, .view-content.active { display: block; }
 
-    /* Grid Styles for Summary View */
-    .grid-container {
-        display: grid;
-        grid-template-columns: 150px repeat({{ user_totals_by_round.values()|first|length }}, 50px);
-        grid-auto-rows: min-content; /* Ensure rows take up necessary space */
-        overflow-x: auto;
-        border: 1px solid #dee2e6;
-    }
-    .grid-header, .grid-game, .grid-cell, .grid-total {
-        padding: 5px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #dee2e6;
-        min-height: 40px; /* Ensure consistent row height */
-    }
-    .sticky-top {
-        position: sticky;
-        top: 0;
-        background-color: #fff;
-        z-index: 10;
-    }
-    .sticky-left {
-        position: sticky;
-        left: 0;
-        background-color: #fff;
-        z-index: 5;
-    }
-    .rotated-text span {
-        display: inline-block;
-        transform: rotate(-90deg);
-        white-space: nowrap;
-    }
-    .rotated-text {
-        height: 100px;
-    }
-    .table-success {
-        background-color: #d4edda; /* Green */
-    }
-    .table-danger {
-        background-color: #f8d7da; /* Red */
-    }
-    .table-dark {
-        background-color: #343a40; /* Dark gray */
-        color: #fff;
-    }
+    .round-stats-bar { background: var(--mm-card); border-radius: 10px; padding: 0.75rem; }
+    .top-scorer { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem; border-radius: 6px; background: var(--mm-dark); font-size: 0.75rem; }
+    .top-scorer.gold { border-left: 3px solid #f5af19; }
+    .top-scorer.silver { border-left: 3px solid #bdc3c7; }
+    .top-scorer.bronze { border-left: 3px solid #cd7f32; }
+    .top-scorer .rank { font-weight: 700; color: var(--mm-primary); }
+    .top-scorer .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top-scorer .pts { font-family: 'Orbitron', monospace; font-weight: 700; font-size: 0.7rem; }
 
-    /* Button Styles */
-    .btn-outline-primary.active {
-        background-color: #007bff;
-        color: white;
-        border-color: #007bff;
-    }
-    .view-content.hidden {
-        display: none;
-    }
-    .btn-group {
-        display: flex; /* Ensure buttons stay connected */
-    }
-    .flex-wrap {
-        flex-wrap: wrap; /* Allow buttons to wrap on mobile */
+    .picks-grid-container { overflow-x: auto; }
+    .picks-grid { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+    .picks-grid th, .picks-grid td { padding: 0.4rem; text-align: center; border: 1px solid var(--mm-border); }
+    .picks-grid th { background: var(--mm-card); position: sticky; top: 0; }
+    .game-col { min-width: 120px; text-align: left !important; background: var(--mm-card); position: sticky; left: 0; z-index: 1; }
+    .user-col { min-width: 60px; }
+    .user-header { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; }
+    .user-avatar { width: 24px; height: 24px; border-radius: 50%; }
+    .user-name { font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60px; }
+    .game-info { display: flex; flex-direction: column; gap: 0.1rem; }
+    .game-info .teams { font-weight: 500; font-size: 0.7rem; line-height: 1.2; }
+    .game-info .winner { font-size: 0.65rem; color: var(--mm-success); }
+    .pick-cell { position: relative; }
+    .pick-cell.correct { background: rgba(81, 207, 102, 0.2); }
+    .pick-cell.incorrect { background: rgba(255, 107, 107, 0.2); }
+    .pick-team { display: block; font-size: 0.7rem; line-height: 1.2; }
+    .pick-pts { font-size: 0.6rem; color: var(--mm-text-muted); }
+    .totals-row { background: var(--mm-card); font-weight: 700; }
+    .total-cell { font-family: 'Orbitron', monospace; color: var(--mm-primary); font-size: 0.75rem; }
+
+    .game-detail-card { background: var(--mm-card); border-radius: 10px; padding: 0.75rem; border: 1px solid var(--mm-border); }
+    .game-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--mm-border); }
+    .game-detail-header h5 { font-size: 0.85rem; margin: 0; }
+    .game-detail-header .badge { font-size: 0.7rem; }
+    .picks-list { display: flex; flex-direction: column; gap: 0.35rem; }
+    .pick-row { display: flex; align-items: center; padding: 0.4rem; border-radius: 6px; background: var(--mm-dark); font-size: 0.8rem; }
+    .pick-row.correct { background: rgba(81, 207, 102, 0.15); border-left: 3px solid var(--mm-success); }
+    .pick-row.incorrect { background: rgba(255, 107, 107, 0.15); border-left: 3px solid var(--mm-danger); }
+    .pick-user { display: flex; align-items: center; gap: 0.4rem; flex: 1; }
+    .pick-avatar { width: 20px; height: 20px; border-radius: 50%; }
+    .pick-value { flex: 1; font-weight: 500; font-size: 0.75rem; }
+    .pick-points { font-family: 'Orbitron', monospace; font-size: 0.7rem; color: var(--mm-primary); }
+
+    @media (max-width: 576px) {
+        .game-col { min-width: 100px; }
+        .user-col { min-width: 50px; }
+        .picks-grid th, .picks-grid td { padding: 0.3rem; }
+        .user-avatar { width: 20px; height: 20px; }
+        .user-name { font-size: 0.6rem; max-width: 50px; }
+        .game-info .teams { font-size: 0.65rem; }
+        .pick-team { font-size: 0.65rem; }
     }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('.btn-round-tab').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.btn-round-tab').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            document.querySelectorAll('.round-picks').forEach(c => c.classList.remove('active'));
+            document.getElementById('picks' + this.dataset.round).classList.add('active');
+        });
+    });
+    document.querySelectorAll('.btn-view-toggle').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.btn-view-toggle').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const view = this.dataset.view;
+            document.querySelectorAll('.view-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.' + view + '-view').forEach(c => c.classList.add('active'));
+        });
+    });
+</script>
 {% endblock %}

@@ -1,15 +1,537 @@
 {% extends "base.html" %}
+{% block title %}Login - March Madness 2026{% endblock %}
+
 {% block content %}
-<h2>Login</h2>
-<form method="POST">
-    <div class="mb-3">
-        <label for="username" class="form-label">Username</label>
-        <input type="text" class="form-control" id="username" name="username" required>
+<div class="login-page">
+    <div class="login-wrapper">
+        <!-- Animated Background -->
+        <div class="login-bg">
+            <div class="bg-ball bg-ball-1"></div>
+            <div class="bg-ball bg-ball-2"></div>
+            <div class="bg-ball bg-ball-3"></div>
+        </div>
+
+        <!-- Main Card -->
+        <div class="login-card animate__animated animate__fadeIn">
+            <!-- Logo & Header -->
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fas fa-basketball"></i>
+                </div>
+                <h1 class="login-title">March Madness</h1>
+                <p class="login-year">2026</p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="login-alert {{ 'error' if category == 'error' else category }}">
+                        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'info-circle' }}"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Login Form -->
+            <form method="POST" class="login-form" autocomplete="off">
+                <div class="input-group">
+                    <div class="input-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <input type="text"
+                           id="username"
+                           name="username"
+                           placeholder="Username"
+                           required
+                           autocomplete="username"
+                           autofocus>
+                </div>
+
+                <div class="input-group">
+                    <div class="input-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <input type="password"
+                           id="password"
+                           name="password"
+                           placeholder="Password"
+                           required
+                           autocomplete="current-password">
+                    <button type="button" class="input-action" onclick="togglePassword()" aria-label="Toggle password visibility">
+                        <i class="fas fa-eye" id="passwordToggleIcon"></i>
+                    </button>
+                </div>
+
+                <button type="submit" class="btn-login">
+                    <span>Sign In</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <!-- Divider -->
+            <div class="login-divider">
+                <span>or</span>
+            </div>
+
+            <!-- Guest Actions -->
+            <a href="{{ url_for('leaderboard') }}" class="btn-guest">
+                <i class="fas fa-trophy"></i>
+                <span>View Leaderboard</span>
+            </a>
+        </div>
+
+        <!-- Bottom Stats -->
+        <div class="login-footer animate__animated animate__fadeInUp">
+            <div class="footer-stat">
+                <i class="fas fa-users"></i>
+                <span><strong>12</strong> Players</span>
+            </div>
+            <div class="footer-divider"></div>
+            <div class="footer-stat live">
+                <span class="live-dot"></span>
+                <span>Tournament Live</span>
+            </div>
+        </div>
     </div>
-    <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" name="password" required>
-    </div>
-    <button type="submit" class="btn btn-primary">Login</button>
-</form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Mobile-First Login Page */
+    .login-page {
+        min-height: 100vh;
+        min-height: 100dvh; /* Dynamic viewport height for mobile */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-wrapper {
+        width: 100%;
+        max-width: 420px;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        position: relative;
+        z-index: 10;
+    }
+
+    /* Animated Background Balls */
+    .login-bg {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .bg-ball {
+        position: absolute;
+        border-radius: 50%;
+        background: var(--mm-gradient-gold);
+        opacity: 0.03;
+        animation: float 20s infinite ease-in-out;
+    }
+
+    .bg-ball-1 {
+        width: 400px;
+        height: 400px;
+        top: -100px;
+        right: -100px;
+        animation-delay: 0s;
+    }
+
+    .bg-ball-2 {
+        width: 300px;
+        height: 300px;
+        bottom: -50px;
+        left: -100px;
+        animation-delay: -5s;
+    }
+
+    .bg-ball-3 {
+        width: 200px;
+        height: 200px;
+        top: 50%;
+        left: 50%;
+        animation-delay: -10s;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translate(0, 0) rotate(0deg); }
+        25% { transform: translate(20px, -20px) rotate(5deg); }
+        50% { transform: translate(-10px, 10px) rotate(-3deg); }
+        75% { transform: translate(15px, 15px) rotate(3deg); }
+    }
+
+    /* Main Card */
+    .login-card {
+        background: var(--mm-card);
+        border: 1px solid var(--mm-border);
+        border-radius: 24px;
+        padding: 2rem;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Header */
+    .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .login-logo {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1rem;
+        background: var(--mm-gradient-gold);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #000;
+        box-shadow: 0 10px 40px rgba(255, 107, 53, 0.4);
+        animation: pulse-glow 2s infinite;
+    }
+
+    @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 10px 40px rgba(255, 107, 53, 0.4); }
+        50% { box-shadow: 0 10px 60px rgba(255, 107, 53, 0.6); }
+    }
+
+    .login-title {
+        font-family: 'Orbitron', monospace;
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0;
+        background: var(--mm-gradient-gold);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .login-year {
+        font-family: 'Orbitron', monospace;
+        font-size: 1rem;
+        color: var(--mm-text-muted);
+        margin: 0.25rem 0 0;
+        letter-spacing: 0.5em;
+        padding-left: 0.5em; /* Offset letter-spacing */
+    }
+
+    /* Alert */
+    .login-alert {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        font-size: 0.9rem;
+    }
+
+    .login-alert.error {
+        background: rgba(255, 82, 82, 0.15);
+        color: #ff5252;
+        border: 1px solid rgba(255, 82, 82, 0.3);
+    }
+
+    .login-alert i {
+        font-size: 1.1rem;
+    }
+
+    /* Form */
+    .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .input-group {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 1rem;
+        color: var(--mm-text-muted);
+        font-size: 1rem;
+        z-index: 2;
+        pointer-events: none;
+    }
+
+    .input-group input {
+        width: 100%;
+        height: 56px;
+        padding: 0 3rem 0 3rem;
+        background: var(--mm-dark);
+        border: 2px solid var(--mm-border);
+        border-radius: 14px;
+        font-size: 1rem;
+        color: var(--mm-text);
+        transition: all 0.3s ease;
+        -webkit-appearance: none; /* iOS fix */
+    }
+
+    .input-group input::placeholder {
+        color: var(--mm-text-muted);
+    }
+
+    .input-group input:focus {
+        outline: none;
+        border-color: var(--mm-primary);
+        box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.15);
+    }
+
+    .input-group input:focus + .input-icon,
+    .input-group input:focus ~ .input-icon {
+        color: var(--mm-primary);
+    }
+
+    .input-action {
+        position: absolute;
+        right: 0.5rem;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        color: var(--mm-text-muted);
+        cursor: pointer;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .input-action:hover,
+    .input-action:active {
+        color: var(--mm-primary);
+        background: rgba(255, 107, 53, 0.1);
+    }
+
+    /* Login Button */
+    .btn-login {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        width: 100%;
+        height: 56px;
+        margin-top: 0.5rem;
+        background: var(--mm-gradient-gold);
+        border: none;
+        border-radius: 14px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #000;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(255, 107, 53, 0.4);
+    }
+
+    .btn-login:active {
+        transform: translateY(0);
+    }
+
+    .btn-login i {
+        transition: transform 0.3s ease;
+    }
+
+    .btn-login:hover i {
+        transform: translateX(4px);
+    }
+
+    /* Divider */
+    .login-divider {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 1.5rem 0;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--mm-border);
+    }
+
+    .login-divider span {
+        color: var(--mm-text-muted);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+
+    /* Guest Button */
+    .btn-guest {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        width: 100%;
+        height: 52px;
+        background: transparent;
+        border: 2px solid var(--mm-border);
+        border-radius: 14px;
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--mm-text);
+        text-decoration: none;
+        transition: all 0.3s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-guest:hover {
+        border-color: var(--mm-secondary);
+        color: var(--mm-secondary);
+        background: rgba(78, 205, 196, 0.1);
+    }
+
+    .btn-guest i {
+        color: var(--mm-secondary);
+    }
+
+    /* Footer Stats */
+    .login-footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        padding: 1rem 1.5rem;
+        background: var(--mm-card);
+        border: 1px solid var(--mm-border);
+        border-radius: 16px;
+    }
+
+    .footer-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--mm-text-muted);
+    }
+
+    .footer-stat i {
+        color: var(--mm-primary);
+    }
+
+    .footer-stat strong {
+        color: var(--mm-text);
+        font-family: 'Orbitron', monospace;
+    }
+
+    .footer-divider {
+        width: 1px;
+        height: 20px;
+        background: var(--mm-border);
+    }
+
+    .footer-stat.live {
+        color: var(--mm-success);
+    }
+
+    .live-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--mm-success);
+        border-radius: 50%;
+        animation: blink 1.5s infinite;
+    }
+
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+
+    /* Tablet & Desktop */
+    @media (min-width: 480px) {
+        .login-card {
+            padding: 2.5rem;
+        }
+
+        .login-logo {
+            width: 90px;
+            height: 90px;
+            font-size: 2.25rem;
+        }
+
+        .login-title {
+            font-size: 2rem;
+        }
+    }
+
+    @media (min-width: 768px) {
+        .login-wrapper {
+            max-width: 440px;
+        }
+
+        .login-card {
+            padding: 3rem;
+        }
+
+        .login-logo {
+            width: 100px;
+            height: 100px;
+            font-size: 2.5rem;
+        }
+    }
+
+    /* iOS Safe Areas */
+    @supports (padding: max(0px)) {
+        .login-page {
+            padding-left: max(1rem, env(safe-area-inset-left));
+            padding-right: max(1rem, env(safe-area-inset-right));
+            padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        }
+    }
+
+    /* Prevent zoom on input focus (iOS) */
+    @media screen and (max-width: 767px) {
+        input[type="text"],
+        input[type="password"] {
+            font-size: 16px !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function togglePassword() {
+        const passwordInput = document.getElementById('password');
+        const icon = document.getElementById('passwordToggleIcon');
+
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+
+    // Prevent form resubmission on refresh
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
+</script>
 {% endblock %}

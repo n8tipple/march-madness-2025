@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Page Not Found - March Madness 2026{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-container animate__animated animate__fadeIn">
+        <div class="error-icon">
+            <i class="fas fa-basketball"></i>
+            <span class="error-code">404</span>
+        </div>
+        <h1 class="error-title">Air Ball!</h1>
+        <p class="error-message">The page you're looking for went out of bounds.</p>
+        <div class="error-actions">
+            <a href="{{ url_for('home') }}" class="btn btn-mm btn-lg">
+                <i class="fas fa-home me-2"></i>Back to Court
+            </a>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-mm btn-lg">
+                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-page {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 2rem;
+    }
+    .error-container {
+        max-width: 500px;
+    }
+    .error-icon {
+        position: relative;
+        font-size: 6rem;
+        color: var(--mm-primary);
+        margin-bottom: 1.5rem;
+        animation: bounce 2s infinite;
+    }
+    .error-icon .fa-basketball {
+        opacity: 0.3;
+    }
+    .error-code {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: 'Orbitron', monospace;
+        font-size: 3rem;
+        font-weight: 900;
+        background: var(--mm-gradient-gold);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .error-title {
+        font-family: 'Orbitron', monospace;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        background: var(--mm-gradient-gold);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .error-message {
+        font-size: 1.2rem;
+        color: var(--mm-text-muted);
+        margin-bottom: 2rem;
+    }
+    .error-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-20px); }
+    }
+</style>
+{% endblock %}

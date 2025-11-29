@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Server Error - March Madness 2026{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-container animate__animated animate__fadeIn">
+        <div class="error-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span class="error-code">500</span>
+        </div>
+        <h1 class="error-title">Technical Foul!</h1>
+        <p class="error-message">Something went wrong on our end. The refs are reviewing the play.</p>
+        <div class="error-details">
+            <p class="text-muted small">Our team has been notified and is working on a fix.</p>
+        </div>
+        <div class="error-actions">
+            <a href="{{ url_for('home') }}" class="btn btn-mm btn-lg">
+                <i class="fas fa-home me-2"></i>Back to Court
+            </a>
+            <button onclick="location.reload()" class="btn btn-outline-mm btn-lg">
+                <i class="fas fa-redo me-2"></i>Try Again
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-page {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 2rem;
+    }
+    .error-container {
+        max-width: 500px;
+    }
+    .error-icon {
+        position: relative;
+        font-size: 6rem;
+        color: var(--mm-danger);
+        margin-bottom: 1.5rem;
+        animation: shake 0.5s ease-in-out infinite alternate;
+    }
+    .error-icon .fa-exclamation-triangle {
+        opacity: 0.3;
+    }
+    .error-code {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: 'Orbitron', monospace;
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: var(--mm-danger);
+    }
+    .error-title {
+        font-family: 'Orbitron', monospace;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: var(--mm-danger);
+    }
+    .error-message {
+        font-size: 1.2rem;
+        color: var(--mm-text-muted);
+        margin-bottom: 1rem;
+    }
+    .error-details {
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: rgba(255, 82, 82, 0.1);
+        border-radius: 10px;
+        border: 1px solid rgba(255, 82, 82, 0.2);
+    }
+    .error-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    @keyframes shake {
+        0% { transform: rotate(-2deg); }
+        100% { transform: rotate(2deg); }
+    }
+</style>
+{% endblock %}

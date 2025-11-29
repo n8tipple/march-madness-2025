@@ -1,101 +1,779 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>March Madness Organizer</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>{% block title %}March Madness 2026{% endblock %}</title>
+
+    <!-- Bootstrap 5.3 with Dark Mode -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
     <style>
-        body { padding: 20px; background-color: #f8f9fa; font-family: 'Arial', sans-serif; }
-        .navbar-brand { font-weight: bold; color: #007bff; padding-left: 15px; }
-        .navbar { box-shadow: 0 2px 4px rgba(0,0,0,.1); }
-        .alert { margin-top: 20px; border-radius: 8px; animation: fadeIn 0.5s; }
-        #leaderboardChart { max-height: 400px; margin: 20px 0; }
-        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,.1); }
-        .btn { border-radius: 5px; transition: all 0.3s; }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,.2); }
-        .modal-header .btn-close { padding: 0.5rem; }
-        .navbar .btn-outline-primary, .navbar .btn-outline-danger { margin: 0 5px; }
-        .navbar .btn-info { color: #fff; background-color: #17a2b8; border-color: #17a2b8; margin: 0 5px; }
-        .navbar .btn-info:hover { background-color: #138496; border-color: #117a8b; transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,.2); }
-        .navbar .btn-outline-primary.active, .navbar .btn-outline-danger.active {
-            background-color: #007bff;
-            color: #fff;
-            border-color: #007bff;
+        :root {
+            --mm-primary: #ff6b35;
+            --mm-secondary: #4ecdc4;
+            --mm-accent: #ffe66d;
+            --mm-danger: #ff6b6b;
+            --mm-success: #51cf66;
+            --mm-dark: #0d1117;
+            --mm-darker: #010409;
+            --mm-card: #161b22;
+            --mm-border: #30363d;
+            --mm-text: #e6edf3;
+            --mm-text-muted: #8b949e;
+            --mm-gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --mm-gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --mm-gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --mm-gradient-gold: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+            --mm-gradient-silver: linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%);
+            --mm-gradient-bronze: linear-gradient(135deg, #cd7f32 0%, #8b4513 100%);
         }
-        .navbar .btn-outline-danger.active {
-            background-color: #dc3545;
-            color: #fff;
-            border-color: #dc3545;
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .table-responsive { overflow-x: auto; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--mm-darker);
+            color: var(--mm-text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background:
+                radial-gradient(ellipse at 20% 80%, rgba(255, 107, 53, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(78, 205, 196, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(102, 126, 234, 0.05) 0%, transparent 70%);
+            animation: bgPulse 15s ease-in-out infinite;
+        }
+
+        @keyframes bgPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Navbar */
+        .navbar {
+            background: rgba(13, 17, 23, 0.95) !important;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--mm-border);
+            padding: 0.75rem 1rem;
+        }
+
+        .navbar-brand {
+            font-family: 'Orbitron', monospace;
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: var(--mm-gradient-gold);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .navbar-brand i {
+            -webkit-text-fill-color: var(--mm-primary);
+            margin-right: 8px;
+        }
+
+        .nav-link {
+            color: var(--mm-text-muted) !important;
+            font-weight: 500;
+            padding: 0.5rem 1rem !important;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--mm-text) !important;
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 3px;
+            background: var(--mm-gradient-gold);
+            border-radius: 3px;
+        }
+
+        .nav-btn {
+            background: var(--mm-gradient-gold);
+            border: none;
+            color: #000 !important;
+            font-weight: 600;
+            padding: 0.5rem 1.25rem !important;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 107, 53, 0.4);
+        }
+
+        .nav-btn-admin {
+            background: var(--mm-gradient-2) !important;
+        }
+
+        .user-badge {
+            background: var(--mm-card);
+            border: 1px solid var(--mm-border);
+            border-radius: 25px;
+            padding: 0.4rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--mm-text);
+            transition: all 0.3s ease;
+        }
+
+        .user-badge:hover {
+            border-color: var(--mm-primary);
+            color: var(--mm-text);
+        }
+
+        .user-badge .points {
+            background: var(--mm-gradient-3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            font-family: 'Orbitron', monospace;
+        }
+
+        /* Main Container */
+        .main-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Cards */
+        .mm-card {
+            background: var(--mm-card);
+            border: 1px solid var(--mm-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .mm-card:hover {
+            border-color: var(--mm-primary);
+            box-shadow: 0 0 30px rgba(255, 107, 53, 0.1);
+        }
+
+        .mm-card-header {
+            font-family: 'Orbitron', monospace;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mm-card-header i {
+            color: var(--mm-primary);
+        }
+
+        /* Buttons */
+        .btn-mm-primary {
+            background: var(--mm-gradient-gold);
+            border: none;
+            color: #000;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-mm-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.3);
+            color: #000;
+        }
+
+        .btn-mm-secondary {
+            background: transparent;
+            border: 2px solid var(--mm-secondary);
+            color: var(--mm-secondary);
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-mm-secondary:hover {
+            background: var(--mm-secondary);
+            color: #000;
+            transform: translateY(-3px);
+        }
+
+        .btn-mm-danger {
+            background: var(--mm-gradient-2);
+            border: none;
+            color: #fff;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-mm-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(245, 87, 108, 0.3);
+            color: #fff;
+        }
+
+        /* Section Headers */
+        .section-header {
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .section-header i {
+            background: var(--mm-gradient-gold);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Alerts */
+        .alert {
+            border-radius: 12px;
+            border: none;
+            padding: 1rem 1.5rem;
+        }
+
+        .alert-success {
+            background: rgba(81, 207, 102, 0.15);
+            border-left: 4px solid var(--mm-success);
+            color: var(--mm-success);
+        }
+
+        .alert-danger {
+            background: rgba(255, 107, 107, 0.15);
+            border-left: 4px solid var(--mm-danger);
+            color: var(--mm-danger);
+        }
+
+        .alert-warning {
+            background: rgba(255, 230, 109, 0.15);
+            border-left: 4px solid var(--mm-accent);
+            color: var(--mm-accent);
+        }
+
+        .alert-info {
+            background: rgba(78, 205, 196, 0.15);
+            border-left: 4px solid var(--mm-secondary);
+            color: var(--mm-secondary);
+        }
+
+        /* Tables */
+        .mm-table {
+            background: var(--mm-card);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .mm-table thead {
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .mm-table th {
+            font-family: 'Orbitron', monospace;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            padding: 1rem;
+            border: none !important;
+        }
+
+        .mm-table td {
+            padding: 1rem;
+            border-color: var(--mm-border) !important;
+            vertical-align: middle;
+        }
+
+        .mm-table tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        .mm-table tbody tr:hover {
+            background: rgba(255, 107, 53, 0.05);
+        }
+
+        /* Form Controls */
+        .form-control, .form-select {
+            background: var(--mm-dark);
+            border: 1px solid var(--mm-border);
+            border-radius: 10px;
+            color: var(--mm-text);
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: var(--mm-dark);
+            border-color: var(--mm-primary);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.2);
+            color: var(--mm-text);
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: var(--mm-text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Radio/Checkbox Custom */
+        .form-check-input {
+            background-color: var(--mm-dark);
+            border: 2px solid var(--mm-border);
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        .form-check-input:checked {
+            background-color: var(--mm-primary);
+            border-color: var(--mm-primary);
+        }
+
+        .form-check-input:focus {
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.2);
+        }
+
+        /* Loading Spinner */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(1, 4, 9, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--mm-border);
+            border-top-color: var(--mm-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Glow Effects */
+        .glow-orange {
+            box-shadow: 0 0 30px rgba(255, 107, 53, 0.3);
+        }
+
+        .glow-teal {
+            box-shadow: 0 0 30px rgba(78, 205, 196, 0.3);
+        }
+
+        .glow-purple {
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Stat Cards */
+        .stat-card {
+            background: var(--mm-card);
+            border: 1px solid var(--mm-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--mm-primary);
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--mm-gradient-gold);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            color: var(--mm-text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0.5rem;
+        }
+
+        /* Badge Styles */
+        .badge-mm {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .badge-gold {
+            background: var(--mm-gradient-gold);
+            color: #000;
+        }
+
+        .badge-silver {
+            background: var(--mm-gradient-silver);
+            color: #fff;
+        }
+
+        .badge-bronze {
+            background: var(--mm-gradient-bronze);
+            color: #fff;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--mm-darker);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--mm-border);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--mm-primary);
+        }
+
+        /* Modal Styles */
+        .modal-content {
+            background: var(--mm-card);
+            border: 1px solid var(--mm-border);
+            border-radius: 16px;
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--mm-border);
+            padding: 1.25rem 1.5rem;
+        }
+
+        .modal-title {
+            font-family: 'Orbitron', monospace;
+            font-weight: 600;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .btn-close {
+            filter: invert(1);
+        }
+
+        /* Responsive */
         @media (max-width: 991px) {
-            .navbar-collapse .navbar-nav .btn {
-                padding: 10px 15px;
-                margin: 5px 0;
-                width: 100%;
-                text-align: left;
+            .navbar-collapse {
+                background: var(--mm-card);
+                border-radius: 12px;
+                padding: 1rem;
+                margin-top: 1rem;
+                border: 1px solid var(--mm-border);
+            }
+
+            .nav-link {
+                padding: 0.75rem 1rem !important;
+            }
+
+            .user-badge {
+                margin-top: 1rem;
+                justify-content: center;
             }
         }
+
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+
+            .section-header {
+                font-size: 1.5rem;
+            }
+
+            .stat-value {
+                font-size: 2rem;
+            }
+        }
+
+        /* Animation Classes */
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .slide-up {
+            animation: slideUp 0.5s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Stagger Animation */
+        .stagger > * {
+            opacity: 0;
+            animation: slideUp 0.5s ease forwards;
+        }
+
+        .stagger > *:nth-child(1) { animation-delay: 0.1s; }
+        .stagger > *:nth-child(2) { animation-delay: 0.2s; }
+        .stagger > *:nth-child(3) { animation-delay: 0.3s; }
+        .stagger > *:nth-child(4) { animation-delay: 0.4s; }
+        .stagger > *:nth-child(5) { animation-delay: 0.5s; }
+        .stagger > *:nth-child(6) { animation-delay: 0.6s; }
+        .stagger > *:nth-child(7) { animation-delay: 0.7s; }
+        .stagger > *:nth-child(8) { animation-delay: 0.8s; }
+        .stagger > *:nth-child(9) { animation-delay: 0.9s; }
+        .stagger > *:nth-child(10) { animation-delay: 1s; }
+        .stagger > *:nth-child(n+11) { animation-delay: 1.1s; }
     </style>
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <div class="bg-animation"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader"></div>
+    </div>
+
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
-        <a class="navbar-brand" href="{{ url_for('home') }}">March Madness</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <div class="navbar-nav me-auto">
-                {% if current_user.is_authenticated %}
-                    <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'pick' }}" href="{{ url_for('pick') }}" onclick="showLoading()">Make Picks</a>
-                    <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'view_picks' }}" href="{{ url_for('view_picks') }}" onclick="showLoading()">View Picks</a>
-                    <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'leaderboard' }}" href="{{ url_for('leaderboard') }}" onclick="showLoading()">Leaderboard</a>
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('home') }}">
+                <i class="fas fa-basketball"></i>March Madness
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-home me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'pick' }}" href="{{ url_for('pick') }}">
+                            <i class="fas fa-check-circle me-1"></i>Make Picks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'bracket' }}" href="{{ url_for('bracket') }}">
+                            <i class="fas fa-sitemap me-1"></i>Bracket
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'view_picks' }}" href="{{ url_for('view_picks') }}">
+                            <i class="fas fa-eye me-1"></i>View Picks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'leaderboard' }}" href="{{ url_for('leaderboard') }}">
+                            <i class="fas fa-trophy me-1"></i>Leaderboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'stats' }}" href="{{ url_for('stats') }}">
+                            <i class="fas fa-chart-bar me-1"></i>Stats
+                        </a>
+                    </li>
                     {% if current_user.is_admin %}
-                        <a class="btn btn-outline-danger {{ 'active' if request.endpoint == 'admin' }}" href="{{ url_for('admin') }}" onclick="showLoading()">Admin</a>
-                        <a class="btn btn-outline-danger {{ 'active' if request.endpoint == 'admin_submit_picks' }}" href="{{ url_for('admin_submit_picks') }}" onclick="showLoading()">Submit Picks for Users</a>
+                    <li class="nav-item">
+                        <a class="nav-link nav-btn nav-btn-admin" href="/admin">
+                            <i class="fas fa-cog me-1"></i>Admin
+                        </a>
+                    </li>
                     {% endif %}
-                {% else %}
-                    <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'login' }}" href="{{ url_for('login') }}" onclick="showLoading()">Login</a>
-                {% endif %}
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'leaderboard' }}" href="{{ url_for('leaderboard') }}">
+                            <i class="fas fa-trophy me-1"></i>Leaderboard
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                <div class="d-flex align-items-center gap-3">
+                    {% if current_user.is_authenticated %}
+                    <a href="/profile/{{ current_user.username }}" class="user-badge">
+                        <img src="{{ url_for('static', filename=current_user.picture) }}"
+                             class="rounded-circle" width="30" height="30" style="object-fit: cover;"
+                             onerror="this.src='https://ui-avatars.com/api/?name={{ current_user.username }}&background=ff6b35&color=fff'">
+                        <span>{{ current_user.username }}</span>
+                        <span class="points">{{ user_points }} pts</span>
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-mm-secondary btn-sm">
+                        <i class="fas fa-sign-out-alt me-1"></i>Logout
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-mm-primary">
+                        <i class="fas fa-sign-in-alt me-1"></i>Login
+                    </a>
+                    {% endif %}
+                </div>
             </div>
-            {% if current_user.is_authenticated %}
-                <span class="btn btn-info">
-                    {{ current_user.username }} ({{ user_points }} points)
-                </span>
-                <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'logout' }}" href="{{ url_for('logout') }}" onclick="showLoading()">Logout</a>
-            {% endif %}
         </div>
     </nav>
 
-    <!-- Loading Indicator -->
-    <div id="loading-indicator" class="d-none text-center my-3">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-    </div>
-
+    <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=True) %}
         {% if messages %}
+        <div class="container-fluid px-4 mt-3">
             {% for category, message in messages %}
-                <div class="alert alert-{{ category }} fade show" role="alert">{{ message }}</div>
+            <div class="alert alert-{{ category }} alert-dismissible fade show animate__animated animate__fadeInDown" role="alert">
+                <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'warning' else 'times-circle' if category == 'danger' else 'info-circle' }} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
             {% endfor %}
+        </div>
         {% endif %}
     {% endwith %}
 
-    <div class="container">
+    <!-- Main Content -->
+    <main class="main-container">
         {% block content %}{% endblock %}
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 mt-5" style="border-top: 1px solid var(--mm-border);">
+        <p class="text-muted mb-0">
+            <i class="fas fa-basketball me-2"></i>March Madness 2026
+            <span class="mx-2">|</span>
+            <i class="fas fa-code me-1"></i>Built with <i class="fas fa-heart text-danger mx-1"></i>
+        </p>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
+        // Loading overlay
         function showLoading() {
-            document.getElementById('loading-indicator').classList.remove('d-none');
+            document.getElementById('loadingOverlay').classList.add('active');
         }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+
+        // Auto-hide alerts after 5 seconds
+        document.querySelectorAll('.alert').forEach(alert => {
+            setTimeout(() => {
+                alert.classList.add('animate__fadeOutUp');
+                setTimeout(() => alert.remove(), 500);
+            }, 5000);
+        });
+
+        // Add loading to navigation
+        document.querySelectorAll('a:not([href^="#"])').forEach(link => {
+            link.addEventListener('click', function(e) {
+                if (!this.classList.contains('dropdown-toggle') && this.href && !this.href.includes('#')) {
+                    showLoading();
+                }
+            });
+        });
+
+        // Hide loading on page load
+        window.addEventListener('load', hideLoading);
+
+        // Hide loading on back/forward navigation (bfcache)
+        window.addEventListener('pageshow', function(event) {
+            hideLoading();
+        });
+
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
     </script>
+
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

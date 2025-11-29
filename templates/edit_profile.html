@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Edit Profile - March Madness 2026{% endblock %}
+
+{% block content %}
+<div class="edit-profile-page">
+    <div class="d-flex justify-content-between align-items-center mb-4 animate__animated animate__fadeIn">
+        <h1 class="section-header mb-0">
+            <i class="fas fa-user-edit"></i>
+            Edit Profile
+        </h1>
+        <a href="/profile/{{ profile_user.username }}" class="btn btn-mm-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Profile
+        </a>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="mm-card">
+                <div class="profile-edit-header text-center mb-4">
+                    <div class="edit-avatar">
+                        <img src="{{ url_for('static', filename=profile_user.picture) }}"
+                             onerror="this.src='https://ui-avatars.com/api/?name={{ profile_user.username }}&size=100&background=ff6b35&color=fff'"
+                             alt="{{ profile_user.username }}">
+                    </div>
+                    <h3 class="mt-3">@{{ profile_user.username }}</h3>
+                </div>
+
+                <form method="POST">
+                    <div class="mb-4">
+                        <label for="funName" class="form-label">
+                            <i class="fas fa-star me-1 text-warning"></i>Fun Name
+                        </label>
+                        <input type="text" class="form-control form-control-lg" id="funName" name="fun_name"
+                               value="{{ profile_user.fun_name }}" maxlength="100"
+                               placeholder="Your tournament nickname...">
+                        <div class="form-text">This is displayed instead of your username around the site.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="bio" class="form-label">
+                            <i class="fas fa-quote-left me-1 text-info"></i>Bio
+                        </label>
+                        <textarea class="form-control" id="bio" name="bio" rows="4" maxlength="500"
+                                  placeholder="Tell everyone about your bracket-picking prowess...">{{ profile_user.bio }}</textarea>
+                        <div class="form-text d-flex justify-content-between">
+                            <span>A short bio about yourself and your bracket picking style.</span>
+                            <span class="char-count"><span id="charCount">{{ profile_user.bio|length }}</span>/500</span>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-mm-primary btn-lg">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-avatar {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 3px solid var(--mm-primary);
+    }
+
+    .edit-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .char-count {
+        color: var(--mm-text-muted);
+        font-size: 0.85rem;
+    }
+
+    textarea.form-control {
+        resize: vertical;
+        min-height: 100px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const bioTextarea = document.getElementById('bio');
+    const charCount = document.getElementById('charCount');
+
+    bioTextarea.addEventListener('input', function() {
+        charCount.textContent = this.value.length;
+    });
+</script>
+{% endblock %}

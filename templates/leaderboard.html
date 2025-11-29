@@ -1,107 +1,568 @@
 {% extends "base.html" %}
+{% block title %}Leaderboard - March Madness 2026{% endblock %}
+
 {% block content %}
-<h2 class="text-primary mb-4">Leaderboard</h2>
-<h6 class="text-muted mb-3">Click images to enlarge</h6>
-
-<!-- Calculate max_points for background scaling -->
-{% set max_points = users|map(attribute='points')|max if users else 1 %}
-{% if max_points == 0 %}{% set max_points = 1 %}{% endif %}
-
-<div class="leaderboard">
-    {% if not users %}
-    <p>No users to display on the leaderboard yet.</p>
-    {% else %}
-    {% for user in users %}
-    <div class="leaderboard-item d-flex align-items-center mb-2 p-2 rounded" 
-         style="background: linear-gradient(to left, #95a5a6 {{ (user.points / max_points * 100)|float }}%, #ecf0f1 {{ (user.points / max_points * 100)|float }}%); position: relative;">
-        <!-- Rank -->
-        <div class="rank me-2">{{ loop.index }}</div>
-        
-        <!-- Picture (expandable) -->
-        <div class="me-2">
-            <img src="{{ url_for('static', filename=user.picture) }}" class="img-thumbnail" 
-                 style="width: 40px; height: 40px; object-fit: cover;" 
-                 data-bs-toggle="modal" data-bs-target="#picModal{{ user.id }}" alt="{{ user.username }}'s picture">
-        </div>
-        
-        <!-- Combined Name -->
-        <div class="flex-grow-1 text-nowrap overflow-hidden me-5" style="text-overflow: ellipsis;">
-            <div>{{ user.fun_name }} ({{ user.username }})</div>
-        </div>
-        
-        <!-- Points -->
-        <div class="points-container">
-            <span class="badge bg-dark text-white mb-1">{{ user.points }} points</span>
-        </div>
+<!-- Template v2.0 -->
+<div class="leaderboard-page">
+    <!-- Header -->
+    <div class="text-center mb-5 animate__animated animate__fadeIn">
+        <h1 class="section-header justify-content-center">
+            <i class="fas fa-trophy"></i>
+            Leaderboard
+        </h1>
+        <p class="text-muted">Battle for bracket supremacy</p>
     </div>
-    
-    <!-- Modal for Picture with Fun Name in Header -->
-    <div class="modal fade" id="picModal{{ user.id }}" tabindex="-1" aria-labelledby="picModalLabel{{ user.id }}" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="picModalLabel{{ user.id }}">{{ user.fun_name }} ({{ user.username }})</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+    <!-- Top 3 Podium -->
+    {% if users|length >= 3 %}
+    <div class="podium-container mb-5 animate__animated animate__fadeInUp">
+        <div class="row justify-content-center align-items-end">
+            <!-- 2nd Place -->
+            <div class="col-4 col-md-3">
+                <div class="podium-card silver">
+                    <div class="podium-rank">2</div>
+                    <div class="podium-avatar">
+                        <img src="{{ url_for('static', filename=users[1].picture) }}"
+                             onerror="this.src='https://ui-avatars.com/api/?name={{ users[1].username }}&background=bdc3c7&color=fff'"
+                             alt="{{ users[1].username }}">
+                    </div>
+                    <div class="podium-name">{{ users[1].username }}</div>
+                    <div class="podium-fun-name">{{ users[1].fun_name }}</div>
+                    <div class="podium-points">{{ users[1].total_points }}</div>
+                    <div class="podium-accuracy">{{ users[1].accuracy }}%</div>
+                    <div class="podium-base silver-base"></div>
                 </div>
-                <div class="modal-body">
-                    <img src="{{ url_for('static', filename=user.picture) }}" class="img-fluid" alt="{{ user.username }}'s picture">
+            </div>
+
+            <!-- 1st Place -->
+            <div class="col-4 col-md-3">
+                <div class="podium-card gold">
+                    <div class="crown-icon"><i class="fas fa-crown"></i></div>
+                    <div class="podium-rank">1</div>
+                    <div class="podium-avatar">
+                        <img src="{{ url_for('static', filename=users[0].picture) }}"
+                             onerror="this.src='https://ui-avatars.com/api/?name={{ users[0].username }}&background=f5af19&color=fff'"
+                             alt="{{ users[0].username }}">
+                    </div>
+                    <div class="podium-name">{{ users[0].username }}</div>
+                    <div class="podium-fun-name">{{ users[0].fun_name }}</div>
+                    <div class="podium-points">{{ users[0].total_points }}</div>
+                    <div class="podium-accuracy">{{ users[0].accuracy }}%</div>
+                    <div class="podium-base gold-base"></div>
+                </div>
+            </div>
+
+            <!-- 3rd Place -->
+            <div class="col-4 col-md-3">
+                <div class="podium-card bronze">
+                    <div class="podium-rank">3</div>
+                    <div class="podium-avatar">
+                        <img src="{{ url_for('static', filename=users[2].picture) }}"
+                             onerror="this.src='https://ui-avatars.com/api/?name={{ users[2].username }}&background=cd7f32&color=fff'"
+                             alt="{{ users[2].username }}">
+                    </div>
+                    <div class="podium-name">{{ users[2].username }}</div>
+                    <div class="podium-fun-name">{{ users[2].fun_name }}</div>
+                    <div class="podium-points">{{ users[2].total_points }}</div>
+                    <div class="podium-accuracy">{{ users[2].accuracy }}%</div>
+                    <div class="podium-base bronze-base"></div>
                 </div>
             </div>
         </div>
     </div>
-    {% endfor %}
     {% endif %}
+
+    <!-- Full Rankings -->
+    <div class="mm-card animate__animated animate__fadeInUp" style="animation-delay: 0.3s;">
+        <div class="mm-card-header">
+            <i class="fas fa-list-ol"></i>
+            Full Rankings
+        </div>
+
+        <div class="rankings-list">
+            {% for user in users %}
+            {% set max_points = users[0].total_points if users else 1 %}
+            {% set bar_width = (user.total_points / max_points * 100) if max_points > 0 else 0 %}
+            <div class="ranking-item {{ 'current-user' if current_user.is_authenticated and user.id == current_user.id }}" style="--bar-width: {{ bar_width }}%;">
+                <div class="rank-badge">
+                    {% if loop.index == 1 %}
+                    <span class="badge badge-mm badge-gold">#1</span>
+                    {% elif loop.index == 2 %}
+                    <span class="badge badge-mm badge-silver">#2</span>
+                    {% elif loop.index == 3 %}
+                    <span class="badge badge-mm badge-bronze">#3</span>
+                    {% else %}
+                    <span class="rank-number">#{{ loop.index }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="ranking-avatar" data-bs-toggle="modal" data-bs-target="#userModal{{ user.id }}">
+                    <img src="{{ url_for('static', filename=user.picture) }}"
+                         onerror="this.src='https://ui-avatars.com/api/?name={{ user.username }}&background=ff6b35&color=fff'"
+                         alt="{{ user.username }}">
+                </div>
+
+                <div class="ranking-info">
+                    <div class="ranking-name">
+                        {{ user.fun_name or user.username }}
+                        {% if current_user.is_authenticated and user.id == current_user.id %}
+                        <span class="you-badge">YOU</span>
+                        {% endif %}
+                    </div>
+                    <div class="ranking-username">@{{ user.username }}</div>
+                </div>
+
+                <div class="ranking-stats">
+                    <div class="stat-pill accuracy">
+                        <i class="fas fa-bullseye"></i>
+                        {{ user.accuracy }}%
+                    </div>
+                </div>
+
+                <div class="ranking-points">
+                    <div class="points-value">{{ user.total_points }}</div>
+                    <div class="points-label">points</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
 </div>
 
+<!-- User Modals (outside main content for proper z-index) -->
+{% for user in users %}
+<div class="modal fade user-modal" id="userModal{{ user.id }}" tabindex="-1" aria-labelledby="userModalLabel{{ user.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalLabel{{ user.id }}">{{ user.fun_name or user.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="{{ url_for('static', filename=user.picture) }}"
+                     onerror="this.src='https://ui-avatars.com/api/?name={{ user.username }}&background=ff6b35&color=fff&size=150'"
+                     class="modal-avatar"
+                     alt="{{ user.username }}">
+                <h4 class="mt-3 mb-1">{{ user.username }}</h4>
+                <p class="text-muted mb-3">{{ user.fun_name }}</p>
+                <div class="modal-stats-row">
+                    <div class="modal-stat">
+                        <div class="modal-stat-value">{{ user.total_points }}</div>
+                        <div class="modal-stat-label">Points</div>
+                    </div>
+                    <div class="modal-stat">
+                        <div class="modal-stat-value">#{{ loop.index }}</div>
+                        <div class="modal-stat-label">Rank</div>
+                    </div>
+                    <div class="modal-stat">
+                        <div class="modal-stat-value">{{ user.accuracy }}%</div>
+                        <div class="modal-stat-label">Accuracy</div>
+                    </div>
+                </div>
+                {% if current_user.is_authenticated %}
+                <a href="/profile/{{ user.username }}" class="btn btn-mm-primary w-100 mt-3">
+                    <i class="fas fa-user me-2"></i>View Full Profile
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_css %}
 <style>
-    .leaderboard-item {
-        position: relative; /* For absolute positioning of points */
-        background-color: #ecf0f1; /* Base color for zero points */
-        padding: 8px; /* Compact padding */
-        color: #000; /* Black text for contrast */
+    /* Podium Styles */
+    .podium-container {
+        padding: 2rem 0;
     }
-    .rank {
-        font-size: 1.2em;
-        font-weight: normal; /* Consistent font weight */
-        color: #000000; /* Black rank number */
-        text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5); /* White shadow for contrast */
+
+    .podium-card {
+        text-align: center;
+        padding: 1.5rem 1rem;
+        position: relative;
     }
-    .points-container {
+
+    .podium-card.gold {
+        margin-bottom: -30px;
+    }
+
+    .podium-card.silver,
+    .podium-card.bronze {
+        margin-bottom: -15px;
+    }
+
+    .crown-icon {
         position: absolute;
-        right: 8px; /* Fixed distance from right edge, relative to left via parent */
-        top: 50%; /* Center vertically */
-        transform: translateY(-50%); /* Adjust for vertical centering */
-        min-width: 90px; /* Ensure enough space */
-        text-align: right; /* Right-align text within container */
+        top: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 2rem;
+        color: #f5af19;
+        animation: bounce 2s infinite;
     }
-    .points-container .badge {
-        font-size: 1rem; /* Slightly bigger text, ~16px */
-        display: inline-block; /* Ensure badge aligns properly */
+
+    @keyframes bounce {
+        0%, 100% { transform: translateX(-50%) translateY(0); }
+        50% { transform: translateX(-50%) translateY(-10px); }
     }
-    .img-thumbnail {
-        background-color: #fff; /* White background for image */
-        border: 1px solid #ddd; /* Subtle border */
+
+    .podium-rank {
+        font-family: 'Orbitron', monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
     }
-    .leaderboard-item div {
-        font-weight: normal; /* Ensure all text is regular weight */
-        text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5); /* White shadow for readability */
+
+    .gold .podium-rank { color: #f5af19; }
+    .silver .podium-rank { color: #bdc3c7; }
+    .bronze .podium-rank { color: #cd7f32; }
+
+    .podium-avatar {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1rem;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 4px solid var(--mm-border);
     }
-    .text-nowrap {
-        white-space: nowrap; /* Prevent name wrapping */
+
+    .gold .podium-avatar { border-color: #f5af19; width: 100px; height: 100px; }
+    .silver .podium-avatar { border-color: #bdc3c7; }
+    .bronze .podium-avatar { border-color: #cd7f32; }
+
+    .podium-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
-    .overflow-hidden {
-        overflow: hidden; /* Hide overflow text */
+
+    .podium-name {
+        font-weight: 700;
+        font-size: 1rem;
     }
-    @media (max-width: 767px) {
-        .leaderboard-item {
-            padding: 6px; /* Tighter padding on mobile */
+
+    .podium-fun-name {
+        font-size: 0.8rem;
+        color: var(--mm-text-muted);
+        margin-bottom: 0.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .podium-points {
+        font-family: 'Orbitron', monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .gold .podium-points { background: var(--mm-gradient-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .silver .podium-points { color: #bdc3c7; }
+    .bronze .podium-points { color: #cd7f32; }
+
+    .podium-accuracy {
+        font-size: 0.8rem;
+        color: var(--mm-secondary);
+    }
+
+    .podium-base {
+        height: 60px;
+        margin-top: 1rem;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .gold-base { background: var(--mm-gradient-gold); height: 100px; }
+    .silver-base { background: var(--mm-gradient-silver); height: 70px; }
+    .bronze-base { background: var(--mm-gradient-bronze); height: 50px; }
+
+    /* Rankings List */
+    .rankings-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .ranking-item {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: var(--mm-dark);
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .ranking-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: var(--bar-width, 0%);
+        background: linear-gradient(90deg, rgba(255, 107, 53, 0.1) 0%, transparent 100%);
+        z-index: 0;
+        pointer-events: none;
+        border-radius: 12px;
+    }
+
+    .ranking-item:hover {
+        transform: translateX(5px);
+    }
+
+    .ranking-item.current-user {
+        border: 2px solid var(--mm-primary);
+        background: rgba(255, 107, 53, 0.1);
+    }
+
+    .ranking-item > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .rank-badge {
+        width: 50px;
+        min-width: 50px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    .rank-number {
+        font-family: 'Orbitron', monospace;
+        font-weight: 600;
+        color: var(--mm-text-muted);
+    }
+
+    .ranking-avatar {
+        width: 50px;
+        height: 50px;
+        min-width: 50px;
+        min-height: 50px;
+        max-width: 50px;
+        max-height: 50px;
+        border-radius: 50%;
+        overflow: hidden;
+        cursor: pointer;
+        border: 2px solid var(--mm-border);
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+        aspect-ratio: 1 / 1;
+    }
+
+    .ranking-avatar:hover {
+        border-color: var(--mm-primary);
+        transform: scale(1.1);
+    }
+
+    .ranking-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .ranking-info {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .ranking-name {
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .you-badge {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        background: var(--mm-gradient-gold);
+        color: #000;
+        border-radius: 10px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .ranking-username {
+        font-size: 0.85rem;
+        color: var(--mm-text-muted);
+    }
+
+    .ranking-stats {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .stat-pill {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.75rem;
+        background: var(--mm-card);
+        border-radius: 20px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    .stat-pill.accuracy {
+        color: var(--mm-secondary);
+    }
+
+    .ranking-points {
+        text-align: right;
+        min-width: 70px;
+        flex-shrink: 0;
+    }
+
+    .points-value {
+        font-family: 'Orbitron', monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+        background: var(--mm-gradient-gold);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .points-label {
+        font-size: 0.75rem;
+        color: var(--mm-text-muted);
+    }
+
+    /* Modal Styles */
+    .user-modal .modal-content {
+        background: var(--mm-card);
+        border: 1px solid var(--mm-border);
+        border-radius: 16px;
+    }
+
+    .user-modal .modal-header {
+        border-bottom: 1px solid var(--mm-border);
+        padding: 1rem;
+    }
+
+    .user-modal .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid var(--mm-primary);
+    }
+
+    .modal-stats-row {
+        display: flex;
+        justify-content: space-around;
+        gap: 0.5rem;
+    }
+
+    .modal-stat {
+        background: var(--mm-dark);
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .modal-stat-value {
+        font-family: 'Orbitron', monospace;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--mm-primary);
+    }
+
+    .modal-stat-label {
+        font-size: 0.7rem;
+        color: var(--mm-text-muted);
+        text-transform: uppercase;
+    }
+
+    .user-modal .btn-mm-primary {
+        position: relative;
+        z-index: 1;
+    }
+
+    @media (max-width: 768px) {
+        .ranking-stats {
+            display: none;
         }
-        .rank {
-            font-size: 1em; /* Slightly smaller rank on mobile */
+
+        .ranking-item {
+            padding: 0.75rem;
+            gap: 0.75rem;
         }
-        .points-container {
-            min-width: 80px; /* Adjusted for mobile */
-            right: 6px; /* Match mobile padding */
+
+        .rank-badge {
+            width: 40px;
+            min-width: 40px;
+        }
+
+        .ranking-avatar {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            min-height: 40px;
+            max-width: 40px;
+            max-height: 40px;
+        }
+
+        .points-value {
+            font-size: 1.2rem;
+        }
+
+        .ranking-points {
+            min-width: 50px;
+        }
+
+        .podium-name {
+            font-size: 0.85rem;
+        }
+
+        .podium-points {
+            font-size: 1.2rem;
+        }
+
+        /* Mobile modal adjustments */
+        .user-modal .modal-dialog {
+            margin: 1rem;
+            max-width: calc(100% - 2rem);
+        }
+
+        .user-modal .modal-body {
+            padding: 1rem;
+        }
+
+        .modal-avatar {
+            width: 80px;
+            height: 80px;
+        }
+
+        .modal-stats-row {
+            gap: 0.25rem;
+        }
+
+        .modal-stat {
+            padding: 0.5rem;
+        }
+
+        .modal-stat-value {
+            font-size: 0.95rem;
+        }
+
+        .modal-stat-label {
+            font-size: 0.6rem;
         }
     }
 </style>

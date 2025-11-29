@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}{{ profile_user.username }}'s Profile - March Madness 2026{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+    <!-- Profile Header -->
+    <div class="profile-header mm-card mb-4 animate__animated animate__fadeIn">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center">
+                <div class="profile-avatar">
+                    <img src="{{ url_for('static', filename=profile_user.picture) }}"
+                         onerror="this.src='https://ui-avatars.com/api/?name={{ profile_user.username }}&size=150&background=ff6b35&color=fff'"
+                         alt="{{ profile_user.username }}">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h1 class="profile-name">{{ profile_user.fun_name or profile_user.username }}</h1>
+                <p class="profile-username">@{{ profile_user.username }}</p>
+                {% if profile_user.bio %}
+                <p class="profile-bio">{{ profile_user.bio }}</p>
+                {% endif %}
+                <div class="profile-badges">
+                    <span class="badge badge-mm badge-gold">
+                        <i class="fas fa-medal me-1"></i>Rank #{{ rank }}
+                    </span>
+                    {% if profile_user.is_admin %}
+                    <span class="badge badge-mm" style="background: var(--mm-gradient-2);">
+                        <i class="fas fa-crown me-1"></i>Admin
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3 text-md-end mt-3 mt-md-0">
+                <div class="profile-points">
+                    <div class="points-value">{{ total_points }}</div>
+                    <div class="points-label">Total Points</div>
+                    {% if current_user.id == profile_user.id %}
+                    <a href="/profile/{{ profile_user.username }}/edit" class="btn btn-mm-secondary btn-sm mt-2">
+                        <i class="fas fa-edit me-1"></i>Edit Profile
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row g-4 mb-4 stagger">
+        <div class="col-6 col-md-3">
+            <div class="stat-card glow-orange">
+                <div class="stat-icon"><i class="fas fa-star"></i></div>
+                <div class="stat-value">{{ total_points }}</div>
+                <div class="stat-label">Points</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card glow-teal">
+                <div class="stat-icon"><i class="fas fa-bullseye"></i></div>
+                <div class="stat-value">{{ accuracy }}%</div>
+                <div class="stat-label">Accuracy</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card glow-purple">
+                <div class="stat-icon"><i class="fas fa-check"></i></div>
+                <div class="stat-value">{{ correct_picks }}</div>
+                <div class="stat-label">Correct</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-hand-pointer"></i></div>
+                <div class="stat-value">{{ total_picks }}</div>
+                <div class="stat-label">Total Picks</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Picks History -->
+    {% if picks_by_round %}
+    <div class="mm-card">
+        <div class="mm-card-header">
+            <i class="fas fa-history"></i>
+            Pick History
+        </div>
+
+        {% for round_data in picks_by_round %}
+        <div class="round-section mb-4">
+            <div class="round-header">
+                <h5><i class="fas fa-basketball me-2"></i>{{ round_data.round.short_name }}</h5>
+                <span class="badge badge-mm badge-gold">{{ round_data.points }} pts</span>
+            </div>
+            <div class="picks-history-grid">
+                {% for pick_data in round_data.picks %}
+                <div class="pick-history-item {% if pick_data.correct == true %}correct{% elif pick_data.correct == false %}incorrect{% endif %}">
+                    <div class="game-matchup">
+                        {{ pick_data.game.team1 }} vs {{ pick_data.game.team2 }}
+                    </div>
+                    <div class="pick-details">
+                        <div class="user-pick">
+                            <span class="label">Picked:</span>
+                            <span class="value">{{ pick_data.pick.picked_team if pick_data.pick else 'No pick' }}</span>
+                        </div>
+                        {% if pick_data.game.winner %}
+                        <div class="actual-winner">
+                            <span class="label">Winner:</span>
+                            <span class="value"><i class="fas fa-trophy"></i> {{ pick_data.game.winner }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if pick_data.correct == true %}
+                    <div class="result-badge correct"><i class="fas fa-check"></i> +{{ round_data.round.point_value }}</div>
+                    {% elif pick_data.correct == false %}
+                    <div class="result-badge incorrect"><i class="fas fa-times"></i> 0</div>
+                    {% else %}
+                    <div class="result-badge pending"><i class="fas fa-clock"></i> TBD</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="mm-card text-center py-5">
+        <i class="fas fa-basketball fa-3x text-muted mb-3"></i>
+        <h4>No picks yet</h4>
+        <p class="text-muted">This player hasn't made any picks in closed rounds.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-avatar { width: 150px; height: 150px; margin: 0 auto; border-radius: 50%; overflow: hidden; border: 4px solid var(--mm-primary); box-shadow: 0 0 30px rgba(255, 107, 53, 0.3); }
+    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-name { font-family: 'Orbitron', monospace; font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .profile-username { color: var(--mm-text-muted); font-size: 1.1rem; margin-bottom: 0.75rem; }
+    .profile-bio { color: var(--mm-text); font-size: 0.95rem; line-height: 1.5; font-style: italic; margin-bottom: 1rem; padding: 0.75rem; background: var(--mm-dark); border-radius: 8px; border-left: 3px solid var(--mm-primary); }
+    .profile-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .profile-points { text-align: center; }
+    .profile-points .points-value { font-family: 'Orbitron', monospace; font-size: 3rem; font-weight: 700; background: var(--mm-gradient-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .profile-points .points-label { color: var(--mm-text-muted); text-transform: uppercase; font-size: 0.85rem; }
+    .stat-icon { font-size: 1.5rem; color: var(--mm-primary); margin-bottom: 0.5rem; }
+    .round-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--mm-dark); border-radius: 10px; margin-bottom: 1rem; }
+    .round-header h5 { margin: 0; font-weight: 600; }
+    .picks-history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .pick-history-item { background: var(--mm-dark); border: 1px solid var(--mm-border); border-radius: 10px; padding: 1rem; transition: all 0.3s ease; position: relative; }
+    .pick-history-item.correct { border-left: 4px solid var(--mm-success); }
+    .pick-history-item.incorrect { border-left: 4px solid var(--mm-danger); }
+    .game-matchup { font-weight: 600; margin-bottom: 0.75rem; font-size: 0.95rem; }
+    .pick-details { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; }
+    .pick-details .label { color: var(--mm-text-muted); }
+    .pick-details .value { font-weight: 500; }
+    .actual-winner .value { color: var(--mm-success); }
+    .result-badge { position: absolute; top: -8px; right: 10px; padding: 3px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+    .result-badge.correct { background: var(--mm-success); color: #000; }
+    .result-badge.incorrect { background: var(--mm-danger); color: #fff; }
+    .result-badge.pending { background: var(--mm-border); color: var(--mm-text-muted); }
+</style>
+{% endblock %}

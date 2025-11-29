@@ -1,104 +1,257 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="container">
-    <h2 class="text-primary mb-4">Make Picks for {{ current_round.name }}</h2>
+{% block title %}Make Picks - March Madness 2026{% endblock %}
 
-    {% with messages = get_flashed_messages(with_categories=True) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} fade show" role="alert">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+{% block content %}
+<div class="picks-page">
+    <div class="d-flex justify-content-between align-items-center mb-4 animate__animated animate__fadeIn">
+        <h1 class="section-header mb-0">
+            <i class="fas fa-check-circle"></i>
+            Make Your Picks
+        </h1>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-mm-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Round Info -->
+    <div class="mm-card mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <div class="round-icon">
+                <i class="fas fa-basketball"></i>
+            </div>
+            <div>
+                <h4 class="mb-0">{{ current_round.name }}</h4>
+                <p class="text-muted mb-0">{{ games|length }} games to pick</p>
+            </div>
+            <div class="ms-auto text-end">
+                <div class="user-pts">{{ user_points }} pts</div>
+                <small class="text-muted">Your Total Points</small>
+            </div>
+        </div>
+    </div>
 
     <form method="POST" id="pickForm">
         {% if current_round.name == 'Championship' %}
-        <div class="mb-3">
-            <label for="wagerInput" class="form-label">Wager (Max: {{ user_points }} points):</label>
-            <input type="number" class="form-control" id="wagerInput" name="wager" min="0" max="{{ user_points }}" value="{{ wager }}">
+        <div class="mm-card mb-4 glow-orange">
+            <div class="mm-card-header">
+                <i class="fas fa-coins"></i>
+                Championship Wager
+            </div>
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <label for="wagerInput" class="form-label">Wager Amount (Max: {{ user_points }} pts)</label>
+                    <input type="number" class="form-control form-control-lg" id="wagerInput" name="wager"
+                           min="0" max="{{ user_points }}" value="{{ wager or 0 }}">
+                </div>
+                <div class="col-md-6">
+                    <p class="text-muted mb-0 mt-3 mt-md-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Win your wager if correct, lose it if wrong!
+                    </p>
+                </div>
+            </div>
         </div>
         {% endif %}
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Team 1</th>
-                    <th>Team 2</th>
-                </tr>
-            </thead>
-            <tbody>
+
+        <div class="mm-card mb-4">
+            <div class="mm-card-header">
+                <i class="fas fa-list-check"></i>
+                {{ current_round.short_name }} Picks
+            </div>
+
+            <div class="picks-grid">
                 {% for game in games %}
-                <tr id="game-row-{{ game.id }}" class="game-row">
-                    <td>
-                        <div class="form-check">
-                            <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team1 }}"
-                                id="game{{ game.id }}_team1"
-                                {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team1 %}checked{% endif %}>
-                            <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="form-check">
-                            <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team2 }}"
-                                id="game{{ game.id }}_team2"
-                                {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team2 %}checked{% endif %}>
-                            <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
-                        </div>
-                    </td>
-                </tr>
-                <!-- Error message placeholder -->
-                <tr id="error-row-{{ game.id }}" class="error-row" style="display: none;">
-                    <td colspan="2">
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            Please select a team for this game.
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    </td>
-                </tr>
+                <div class="pick-card {% if error_game_id == game.id %}error{% endif %}" id="gameCard{{ game.id }}">
+                    <div class="game-label">Game {{ loop.index }}</div>
+                    <div class="teams-pick">
+                        <label class="team-pick-option">
+                            <input type="radio" name="game{{ game.id }}" value="{{ game.team1 }}"
+                                   {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team1 %}checked{% endif %}>
+                            <span class="team-name">{{ game.team1 }}</span>
+                        </label>
+                        <span class="vs-badge">VS</span>
+                        <label class="team-pick-option">
+                            <input type="radio" name="game{{ game.id }}" value="{{ game.team2 }}"
+                                   {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team2 %}checked{% endif %}>
+                            <span class="team-name">{{ game.team2 }}</span>
+                        </label>
+                    </div>
+                    <div class="error-msg">
+                        <i class="fas fa-exclamation-circle me-1"></i>Please select a team
+                    </div>
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
-        <button type="submit" class="btn btn-primary">Submit Picks</button>
+            </div>
+        </div>
+
+        <div class="submit-section">
+            <button type="submit" class="btn btn-mm-primary btn-lg">
+                <i class="fas fa-paper-plane me-2"></i>Submit Picks
+            </button>
+        </div>
     </form>
 </div>
+{% endblock %}
 
-<script>
-    // On page load, scroll to the first empty pick with error if present
-    {% if error_game_id %}
-        document.getElementById('error-row-{{ error_game_id }}').style.display = 'table-row';
-        document.getElementById('game-row-{{ error_game_id }}').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    {% endif %}
-
-    // Client-side validation to prevent form submission if picks are missing
-    document.getElementById('pickForm').addEventListener('submit', function(event) {
-        document.querySelectorAll('.error-row').forEach(function(row) {
-            row.style.display = 'none';
-        });
-
-        let firstEmptyGameId = null;
-        {% for game in games %}
-            const pick_{{ game.id }} = document.querySelector('input[name="game{{ game.id }}"]:checked');
-            if (!pick_{{ game.id }}) {
-                if (!firstEmptyGameId) {
-                    firstEmptyGameId = {{ game.id }};
-                }
-            }
-        {% endfor %}
-
-        if (firstEmptyGameId) {
-            event.preventDefault();
-            document.getElementById('error-row-' + firstEmptyGameId).style.display = 'table-row';
-            document.getElementById('game-row-' + firstEmptyGameId).scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return false;
-        }
-    });
-</script>
-
+{% block extra_css %}
 <style>
-    .error-row {
+    .round-icon {
+        width: 50px;
+        height: 50px;
+        background: var(--mm-gradient-gold);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: #000;
+    }
+
+    .user-pts {
+        font-family: 'Orbitron', monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--mm-primary);
+    }
+
+    .picks-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .pick-card {
+        background: var(--mm-dark);
+        border: 1px solid var(--mm-border);
+        border-radius: 10px;
+        padding: 0.75rem;
+    }
+
+    .pick-card.error {
+        border-color: var(--mm-danger);
+        animation: shake 0.5s ease;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20%, 60% { transform: translateX(-5px); }
+        40%, 80% { transform: translateX(5px); }
+    }
+
+    .game-label {
+        font-size: 0.7rem;
+        color: var(--mm-text-muted);
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .teams-pick {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .team-pick-option {
+        flex: 1;
+        cursor: pointer;
+    }
+
+    .team-pick-option input {
         display: none;
     }
-    .game-row {
-        position: relative;
+
+    .team-pick-option .team-name {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 40px;
+        padding: 0.4rem;
+        background: var(--mm-card);
+        border: 2px solid var(--mm-border);
+        border-radius: 6px;
+        text-align: center;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        font-size: 0.8rem;
+        line-height: 1.1;
+    }
+
+    .team-pick-option:hover .team-name {
+        border-color: var(--mm-primary);
+    }
+
+    .team-pick-option input:checked + .team-name {
+        background: rgba(255, 107, 53, 0.15);
+        border-color: var(--mm-primary);
+        color: var(--mm-primary);
+    }
+
+    .vs-badge {
+        font-family: 'Orbitron', monospace;
+        font-size: 0.65rem;
+        color: var(--mm-text-muted);
+    }
+
+    .error-msg {
+        display: none;
+        margin-top: 0.5rem;
+        color: var(--mm-danger);
+        font-size: 0.85rem;
+    }
+
+    .pick-card.error .error-msg {
+        display: block;
+    }
+
+    .submit-section {
+        text-align: center;
+        padding: 1rem 0;
+    }
+
+    @media (max-width: 576px) {
+        .picks-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Scroll to error on page load if present
+    {% if error_game_id %}
+    document.getElementById('gameCard{{ error_game_id }}').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    {% endif %}
+
+    // Client-side validation
+    document.getElementById('pickForm').addEventListener('submit', function(e) {
+        let hasError = false;
+        let firstError = null;
+
+        document.querySelectorAll('.pick-card').forEach(card => {
+            const gameId = card.id.replace('gameCard', '');
+            const checked = document.querySelector(`input[name="game${gameId}"]:checked`);
+            if (!checked) {
+                card.classList.add('error');
+                hasError = true;
+                if (!firstError) firstError = card;
+            } else {
+                card.classList.remove('error');
+            }
+        });
+
+        if (hasError) {
+            e.preventDefault();
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+
+    // Remove error state when a selection is made
+    document.querySelectorAll('.team-pick-option input').forEach(input => {
+        input.addEventListener('change', function() {
+            this.closest('.pick-card').classList.remove('error');
+        });
+    });
+</script>
 {% endblock %}
