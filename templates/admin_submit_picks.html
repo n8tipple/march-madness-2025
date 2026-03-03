@@ -1,107 +1,97 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container">
-    <h2 class="text-primary mb-4">Submit Picks for Users</h2>
+<div class="page-header">
+    <h2 class="page-title">Submit Picks for Users</h2>
+    <p class="page-subtitle">Choose a round and user, then submit picks as admin.</p>
+</div>
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=True) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} fade show" role="alert">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    <!-- Round Selector -->
-    <div class="mb-3">
-        <label for="roundSelect" class="form-label">Select Round:</label>
-        <select class="form-select" id="roundSelect" onchange="window.location.href='{{ url_for('admin_submit_picks') }}?round_id=' + this.value + '&user_id=' + document.getElementById('userSelect').value">
-            {% for round in all_open_rounds %}
-                <option value="{{ round.id }}" {% if current_round.id == round.id %}selected{% endif %}>
-                    {{ round.name }}
-                </option>
-            {% endfor %}
-        </select>
-    </div>
-
-    <!-- User Selector -->
-    <div class="mb-3">
-        <label for="userSelect" class="form-label">Select User:</label>
-        <select class="form-select" id="userSelect" onchange="window.location.href='{{ url_for('admin_submit_picks') }}?round_id=' + document.getElementById('roundSelect').value + '&user_id=' + this.value">
-            <option value="">Select a User</option>
-            {% for user in users %}
-                <option value="{{ user.id }}" {% if selected_user_id == user.id %}selected{% endif %}>
-                    {{ user.username }}
-                </option>
-            {% endfor %}
-        </select>
-    </div>
-
-    {% if selected_user and current_round %}
-    <form method="POST" id="submitPicksForm">
-        <input type="hidden" name="round_id" value="{{ current_round.id }}">
-        <input type="hidden" name="user_id" value="{{ selected_user.id }}">
-        <h3>Submit Picks for {{ selected_user.username }}</h3>
-        <h4>Round: {{ current_round.name }}</h4>
-        {% if current_round.name == 'Championship' %}
-        <div class="mb-3">
-            <label for="wagerInput" class="form-label">Wager (Max: {{ selected_user_points }} points):</label>
-            <input type="number" class="form-control" id="wagerInput" name="wager" min="0" max="{{ selected_user_points }}" value="{{ wager }}">
-        </div>
-        {% endif %}
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Team 1</th>
-                    <th>Team 2</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for game in games %}
-                <tr id="game-row-{{ game.id }}" class="game-row">
-                    <td>
-                        <div class="form-check">
-                            <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team1 }}"
-                                id="game{{ game.id }}_team1"
-                                {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team1 %}checked{% endif %}>
-                            <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="form-check">
-                            <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team2 }}"
-                                id="game{{ game.id }}_team2"
-                                {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team2 %}checked{% endif %}>
-                            <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
-                        </div>
-                    </td>
-                </tr>
-                <!-- Error message placeholder -->
-                <tr id="error-row-{{ game.id }}" class="error-row" style="display: none;">
-                    <td colspan="2">
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            Please select a team for this game.
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    </td>
-                </tr>
+<div class="surface-soft mb-3">
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <label for="roundSelect" class="form-label">Select Round</label>
+            <select class="form-select" id="roundSelect" onchange="window.location.href='{{ url_for('admin_submit_picks') }}?round_id=' + this.value + '&user_id=' + document.getElementById('userSelect').value">
+                {% for round in all_open_rounds %}
+                    <option value="{{ round.id }}" {% if current_round and current_round.id == round.id %}selected{% endif %}>
+                        {{ round.name }}
+                    </option>
                 {% endfor %}
-            </tbody>
-        </table>
-        <button type="submit" name="submit_picks" class="btn btn-primary">Submit Picks</button>
-    </form>
+            </select>
+        </div>
+        <div class="col-12 col-md-6">
+            <label for="userSelect" class="form-label">Select User</label>
+            <select class="form-select" id="userSelect" onchange="window.location.href='{{ url_for('admin_submit_picks') }}?round_id=' + document.getElementById('roundSelect').value + '&user_id=' + this.value">
+                <option value="">Select a user</option>
+                {% for user in users %}
+                    <option value="{{ user.id }}" {% if selected_user_id == user.id %}selected{% endif %}>
+                        {{ user.username }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+{% if selected_user and current_round %}
+<form method="POST" id="submitPicksForm">
+    <input type="hidden" name="round_id" value="{{ current_round.id }}">
+    <input type="hidden" name="user_id" value="{{ selected_user.id }}">
+    <h3 class="h5 mb-1">Submitting for {{ selected_user.username }}</h3>
+    <p class="text-muted mb-3">Round: {{ current_round.name }}</p>
+
+    {% if current_round.name == 'Championship' %}
+    <div class="mb-3 wager-card surface-soft">
+        <label for="wagerInput" class="form-label mb-1">Wager (Max: {{ selected_user_points }} points)</label>
+        <input type="number" class="form-control" id="wagerInput" name="wager" min="0" max="{{ selected_user_points }}" value="{{ wager }}">
+    </div>
     {% endif %}
 
-    <script>
-        // On page load, scroll to the first empty pick with error if present
-        {% if error_game_id %}
-            document.getElementById('error-row-{{ error_game_id }}').style.display = 'table-row';
-            document.getElementById('game-row-{{ error_game_id }}').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        {% endif %}
+    <div class="game-list">
+        {% for game in games %}
+        {% set existing_pick = existing_picks.get(game.id) %}
+        <fieldset id="game-row-{{ game.id }}" class="game-card mb-3">
+            <legend class="game-title">Game {{ loop.index }}</legend>
+            <p class="game-matchup">{{ game.team1 }} vs {{ game.team2 }}</p>
+            <div class="row g-2">
+                <div class="col-12 col-md-6">
+                    <div class="form-check team-option">
+                        <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team1 }}"
+                            id="game{{ game.id }}_team1"
+                            {% if existing_pick and existing_pick.picked_team == game.team1 %}checked{% endif %}>
+                        <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="form-check team-option">
+                        <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team2 }}"
+                            id="game{{ game.id }}_team2"
+                            {% if existing_pick and existing_pick.picked_team == game.team2 %}checked{% endif %}>
+                        <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
+                    </div>
+                </div>
+            </div>
+            <div id="error-row-{{ game.id }}" class="alert alert-danger error-row d-none mt-3 mb-0" role="alert">
+                Please select a team for this game.
+            </div>
+        </fieldset>
+        {% endfor %}
+    </div>
+    <div class="action-row">
+        <button type="submit" name="submit_picks" class="btn btn-primary submit-btn">Submit Picks</button>
+    </div>
+</form>
+{% endif %}
 
-        document.getElementById('submitPicksForm').addEventListener('submit', function(event) {
+<script>
+    {% if error_game_id %}
+        document.getElementById('error-row-{{ error_game_id }}').classList.remove('d-none');
+        document.getElementById('game-row-{{ error_game_id }}').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    {% endif %}
+
+    const submitPicksForm = document.getElementById('submitPicksForm');
+    if (submitPicksForm) {
+        submitPicksForm.addEventListener('submit', function(event) {
             document.querySelectorAll('.error-row').forEach(function(row) {
-                row.style.display = 'none';
+                row.classList.add('d-none');
             });
 
             let firstEmptyGameId = null;
@@ -116,20 +106,58 @@
 
             if (firstEmptyGameId) {
                 event.preventDefault();
-                document.getElementById('error-row-' + firstEmptyGameId).style.display = 'table-row';
+                document.getElementById('error-row-' + firstEmptyGameId).classList.remove('d-none');
                 document.getElementById('game-row-' + firstEmptyGameId).scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return false;
             }
         });
-    </script>
+    }
+</script>
 
-    <style>
-        .error-row {
-            display: none;
+<style>
+    .wager-card {
+        max-width: 320px;
+        padding: 0.75rem;
+    }
+
+    .game-card {
+        border: 1px solid #dce4ee;
+        border-radius: 0.8rem;
+        padding: 0.9rem;
+        background: #fbfdff;
+    }
+
+    .game-title {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    .game-matchup {
+        font-size: 0.95rem;
+        color: #4b5c70;
+        margin-bottom: 0.65rem;
+    }
+
+    .team-option {
+        border: 1px solid #dce4ee;
+        border-radius: 0.65rem;
+        padding: 0.65rem 0.75rem;
+        background: #fff;
+    }
+
+    .submit-btn {
+        width: 100%;
+    }
+
+    @media (min-width: 768px) {
+        .game-card {
+            padding: 1rem;
         }
-        .game-row {
-            position: relative;
+
+        .submit-btn {
+            width: auto;
         }
-    </style>
-</div>
+    }
+</style>
 {% endblock %}

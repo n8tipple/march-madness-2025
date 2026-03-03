@@ -1,77 +1,62 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container">
-    <h2 class="text-primary mb-4">Make Picks for {{ current_round.name }}</h2>
-
-    {% with messages = get_flashed_messages(with_categories=True) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} fade show" role="alert">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    <form method="POST" id="pickForm">
-        {% if current_round.name == 'Championship' %}
-        <div class="mb-3">
-            <label for="wagerInput" class="form-label">Wager (Max: {{ user_points }} points):</label>
-            <input type="number" class="form-control" id="wagerInput" name="wager" min="0" max="{{ user_points }}" value="{{ wager }}">
-        </div>
-        {% endif %}
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Team 1</th>
-                    <th>Team 2</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for game in games %}
-                <tr id="game-row-{{ game.id }}" class="game-row">
-                    <td>
-                        <div class="form-check">
-                            <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team1 }}"
-                                id="game{{ game.id }}_team1"
-                                {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team1 %}checked{% endif %}>
-                            <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="form-check">
-                            <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team2 }}"
-                                id="game{{ game.id }}_team2"
-                                {% if existing_picks[game.id] and existing_picks[game.id].picked_team == game.team2 %}checked{% endif %}>
-                            <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
-                        </div>
-                    </td>
-                </tr>
-                <!-- Error message placeholder -->
-                <tr id="error-row-{{ game.id }}" class="error-row" style="display: none;">
-                    <td colspan="2">
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            Please select a team for this game.
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <button type="submit" class="btn btn-primary">Submit Picks</button>
-    </form>
+<div class="page-header">
+    <h2 class="page-title">Make Picks</h2>
+    <p class="page-subtitle">{{ current_round.name }}</p>
 </div>
 
+<form method="POST" id="pickForm">
+    {% if current_round.name == 'Championship' %}
+    <div class="mb-3 wager-card surface-soft">
+        <label for="wagerInput" class="form-label mb-1">Wager (Max: {{ user_points }} points)</label>
+        <input type="number" class="form-control" id="wagerInput" name="wager" min="0" max="{{ user_points }}" value="{{ wager }}">
+    </div>
+    {% endif %}
+
+    <div class="game-list">
+        {% for game in games %}
+        {% set existing_pick = existing_picks.get(game.id) %}
+        <fieldset id="game-row-{{ game.id }}" class="game-card mb-3">
+            <legend class="game-title">Game {{ loop.index }}</legend>
+            <p class="game-matchup">{{ game.team1 }} vs {{ game.team2 }}</p>
+            <div class="row g-2">
+                <div class="col-12 col-md-6">
+                    <div class="form-check team-option">
+                        <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team1 }}"
+                            id="game{{ game.id }}_team1"
+                            {% if existing_pick and existing_pick.picked_team == game.team1 %}checked{% endif %}>
+                        <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="form-check team-option">
+                        <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team2 }}"
+                            id="game{{ game.id }}_team2"
+                            {% if existing_pick and existing_pick.picked_team == game.team2 %}checked{% endif %}>
+                        <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
+                    </div>
+                </div>
+            </div>
+            <div id="error-row-{{ game.id }}" class="alert alert-danger error-row d-none mt-3 mb-0" role="alert">
+                Please select a team for this game.
+            </div>
+        </fieldset>
+        {% endfor %}
+    </div>
+    <div class="action-row">
+        <button type="submit" class="btn btn-primary submit-btn">Submit Picks</button>
+    </div>
+</form>
+
 <script>
-    // On page load, scroll to the first empty pick with error if present
     {% if error_game_id %}
-        document.getElementById('error-row-{{ error_game_id }}').style.display = 'table-row';
+        document.getElementById('error-row-{{ error_game_id }}').classList.remove('d-none');
         document.getElementById('game-row-{{ error_game_id }}').scrollIntoView({ behavior: 'smooth', block: 'center' });
     {% endif %}
 
-    // Client-side validation to prevent form submission if picks are missing
     document.getElementById('pickForm').addEventListener('submit', function(event) {
         document.querySelectorAll('.error-row').forEach(function(row) {
-            row.style.display = 'none';
+            row.classList.add('d-none');
         });
 
         let firstEmptyGameId = null;
@@ -86,7 +71,7 @@
 
         if (firstEmptyGameId) {
             event.preventDefault();
-            document.getElementById('error-row-' + firstEmptyGameId).style.display = 'table-row';
+            document.getElementById('error-row-' + firstEmptyGameId).classList.remove('d-none');
             document.getElementById('game-row-' + firstEmptyGameId).scrollIntoView({ behavior: 'smooth', block: 'center' });
             return false;
         }
@@ -94,11 +79,49 @@
 </script>
 
 <style>
-    .error-row {
-        display: none;
+    .wager-card {
+        max-width: 320px;
+        padding: 0.75rem;
     }
-    .game-row {
-        position: relative;
+
+    .game-card {
+        border: 1px solid #dce4ee;
+        border-radius: 0.8rem;
+        padding: 0.9rem;
+        background: #fbfdff;
+    }
+
+    .game-title {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    .game-matchup {
+        font-size: 0.95rem;
+        color: #4b5c70;
+        margin-bottom: 0.65rem;
+    }
+
+    .team-option {
+        border: 1px solid #dce4ee;
+        border-radius: 0.65rem;
+        padding: 0.65rem 0.75rem;
+        background: #fff;
+    }
+
+    .submit-btn {
+        width: 100%;
+    }
+
+    @media (min-width: 768px) {
+        .game-card {
+            padding: 1rem;
+        }
+
+        .submit-btn {
+            width: auto;
+        }
     }
 </style>
 {% endblock %}

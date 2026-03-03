@@ -1,5 +1,7 @@
 from app import app, db, User, Round, Game, Pick
 
+TOURNAMENT_YEAR = 2026
+
 with app.app_context():
     # Drop all tables to start fresh
     db.drop_all()
@@ -8,18 +10,18 @@ with app.app_context():
 
     # List of users with fixed passwords, admin status, corny fun names, and pictures
     users = [
-        ('June', 'jump27', False, 'Jivin’ June', 'june.png'),
-        ('Don', 'shot28', False, 'Dashin’ Don', 'don.png'),
-        ('Nate', 'pass57', True, 'Nothin’ but Nate', 'nate.png'),
-        ('Chris', 'pass18', True, 'Crossover Chris', 'chris.png'),
-        ('Casey', 'bball32', True, 'Center Court Casey', 'casey.png'),
-        ('James', 'slam56', False, 'Jammin’ James', 'james.png'),
-        ('Keith', 'shot61', False, 'Killer Keith', 'keith.png'),
-        ('Dave', 'hoop19', False, 'Dunkin’ Dave', 'dave.png'),
-        ('Sherry', 'swish48', False, 'Swishin’ Sherry', 'sherry.png'),
-        ('Tyler', 'hoop23', False, 'Three Point Tyler', 'tyler.png'),
-        ('Meiko', 'slam96', False, 'Mighty Meiko', 'meiko.png'),
-        ('Sid', 'ball71', False, 'Slammin’ Sid', 'sid.png')
+        ('June', 'jump27', False, 'Jump Shot June', 'june.png'),
+        ('Don', 'shot28', False, 'Downtown Don', 'don.png'),
+        ('Nate', 'pass57', True, 'Net Rippin’ Nate', 'nate.png'),
+        ('Chris', 'pass18', True, 'Clutch Chris', 'chris.png'),
+        ('Casey', 'bball32', True, 'Coast-to-Coast Casey', 'casey.png'),
+        ('James', 'slam56', False, 'Fast Break James', 'james.png'),
+        ('Keith', 'shot61', False, 'Key Shot Keith', 'keith.png'),
+        ('Dave', 'hoop19', False, 'Drive Lane Dave', 'dave.png'),
+        ('Sherry', 'swish48', False, 'Sharp Shooter Sherry', 'sherry.png'),
+        ('Tyler', 'hoop23', False, 'Triple Threat Tyler', 'tyler.png'),
+        ('Meiko', 'slam96', False, 'Money Meiko', 'meiko.png'),
+        ('Sid', 'ball71', False, 'Sixth Man Sid', 'sid.png')
     ]
 
     # Create users with specified passwords, fun names, and pictures
@@ -37,6 +39,7 @@ with app.app_context():
     db.session.add(round1)
     db.session.commit()
 
+    # First-round matchups (update this list when the official bracket is final)
     games = [
         ("UConn", "Stetson"),
         ("Northwestern", "Florida Atlantic"),
@@ -80,4 +83,4 @@ with app.app_context():
     db.session.commit()
 
     print("Setup complete. Database reset and populated with:")
-    print("First Round (Round of 64) initialized with 2024 NCAA Tournament teams, no picks created.")
+    print(f"First Round (Round of 64) initialized for {TOURNAMENT_YEAR}, no picks created.")

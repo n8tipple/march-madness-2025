@@ -1,15 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Login</h2>
-<form method="POST">
-    <div class="mb-3">
-        <label for="username" class="form-label">Username</label>
-        <input type="text" class="form-control" id="username" name="username" required>
+<section class="login-wrap">
+    <div class="page-header">
+        <h2 class="page-title">Login</h2>
+        <p class="page-subtitle">Use your bracket username and password.</p>
     </div>
-    <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" name="password" required>
-    </div>
-    <button type="submit" class="btn btn-primary">Login</button>
-</form>
+    <form method="POST" class="login-form surface-soft">
+        <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" name="username" autocomplete="username" required>
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Login</button>
+    </form>
+</section>
+
+<style>
+    .login-wrap {
+        max-width: 460px;
+        margin: 0 auto;
+    }
+
+    .login-form {
+        padding: 1rem 1rem 0.9rem;
+    }
+
+    @media (min-width: 768px) {
+        .login-form {
+            padding: 1.25rem;
+        }
+    }
+</style>
 {% endblock %}

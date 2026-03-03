@@ -1,41 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="text-primary mb-4">Leaderboard</h2>
-<h6 class="text-muted mb-3">Click images to enlarge</h6>
+<div class="page-header">
+    <h2 class="page-title">Leaderboard</h2>
+    <p class="page-subtitle">Tap a photo to enlarge.</p>
+</div>
 
-<!-- Calculate max_points for background scaling -->
 {% set max_points = users|map(attribute='points')|max if users else 1 %}
 {% if max_points == 0 %}{% set max_points = 1 %}{% endif %}
 
 <div class="leaderboard">
     {% if not users %}
-    <p>No users to display on the leaderboard yet.</p>
+    <div class="surface-soft">No users to display on the leaderboard yet.</div>
     {% else %}
     {% for user in users %}
-    <div class="leaderboard-item d-flex align-items-center mb-2 p-2 rounded" 
-         style="background: linear-gradient(to left, #95a5a6 {{ (user.points / max_points * 100)|float }}%, #ecf0f1 {{ (user.points / max_points * 100)|float }}%); position: relative;">
-        <!-- Rank -->
-        <div class="rank me-2">{{ loop.index }}</div>
-        
-        <!-- Picture (expandable) -->
-        <div class="me-2">
-            <img src="{{ url_for('static', filename=user.picture) }}" class="img-thumbnail" 
-                 style="width: 40px; height: 40px; object-fit: cover;" 
-                 data-bs-toggle="modal" data-bs-target="#picModal{{ user.id }}" alt="{{ user.username }}'s picture">
-        </div>
-        
-        <!-- Combined Name -->
-        <div class="flex-grow-1 text-nowrap overflow-hidden me-5" style="text-overflow: ellipsis;">
-            <div>{{ user.fun_name }} ({{ user.username }})</div>
-        </div>
-        
-        <!-- Points -->
-        <div class="points-container">
-            <span class="badge bg-dark text-white mb-1">{{ user.points }} points</span>
+    {% set fill_pct = ((user.points if user.points > 0 else 0) / max_points * 100)|float %}
+    <div class="leaderboard-item mb-2 p-2 p-md-3 rounded">
+        <div class="d-flex align-items-center gap-2">
+            <div class="rank-badge">#{{ loop.index }}</div>
+            <img src="{{ url_for('static', filename=user.picture) }}" class="leader-photo"
+                 data-bs-toggle="modal" data-bs-target="#picModal{{ user.id }}" alt="{{ user.username }} picture">
+            <div class="flex-grow-1 overflow-hidden">
+                <div class="leader-name">{{ user.fun_name }} ({{ user.username }})</div>
+                <div class="progress mt-1">
+                    <div class="progress-bar" role="progressbar" style="width: {{ fill_pct }}%;" aria-valuenow="{{ fill_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-dark">{{ user.points }} pts</span>
+            </div>
         </div>
     </div>
-    
-    <!-- Modal for Picture with Fun Name in Header -->
+
     <div class="modal fade" id="picModal{{ user.id }}" tabindex="-1" aria-labelledby="picModalLabel{{ user.id }}" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -55,53 +50,54 @@
 
 <style>
     .leaderboard-item {
-        position: relative; /* For absolute positioning of points */
-        background-color: #ecf0f1; /* Base color for zero points */
-        padding: 8px; /* Compact padding */
-        color: #000; /* Black text for contrast */
+        background-color: #f8fbff;
+        border: 1px solid #dce4ee;
     }
-    .rank {
-        font-size: 1.2em;
-        font-weight: normal; /* Consistent font weight */
-        color: #000000; /* Black rank number */
-        text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5); /* White shadow for contrast */
+
+    .rank-badge {
+        min-width: 52px;
+        text-align: center;
+        font-weight: 700;
+        color: #0d6efd;
+        background: #eaf2ff;
+        border-radius: 999px;
+        padding: 0.25rem 0.45rem;
+        font-size: 0.9rem;
     }
-    .points-container {
-        position: absolute;
-        right: 8px; /* Fixed distance from right edge, relative to left via parent */
-        top: 50%; /* Center vertically */
-        transform: translateY(-50%); /* Adjust for vertical centering */
-        min-width: 90px; /* Ensure enough space */
-        text-align: right; /* Right-align text within container */
+
+    .leader-photo {
+        width: 42px;
+        height: 42px;
+        object-fit: cover;
+        border: 1px solid #dce4ee;
+        border-radius: 0.55rem;
+        cursor: pointer;
     }
-    .points-container .badge {
-        font-size: 1rem; /* Slightly bigger text, ~16px */
-        display: inline-block; /* Ensure badge aligns properly */
+
+    .leader-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.95rem;
     }
-    .img-thumbnail {
-        background-color: #fff; /* White background for image */
-        border: 1px solid #ddd; /* Subtle border */
+
+    .progress {
+        height: 0.45rem;
+        background: #e8edf5;
     }
-    .leaderboard-item div {
-        font-weight: normal; /* Ensure all text is regular weight */
-        text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5); /* White shadow for readability */
+
+    .progress-bar {
+        background: linear-gradient(90deg, #0d6efd 0%, #17a2b8 100%);
     }
-    .text-nowrap {
-        white-space: nowrap; /* Prevent name wrapping */
-    }
-    .overflow-hidden {
-        overflow: hidden; /* Hide overflow text */
-    }
-    @media (max-width: 767px) {
+
+    @media (min-width: 768px) {
         .leaderboard-item {
-            padding: 6px; /* Tighter padding on mobile */
+            padding: 0.9rem;
         }
-        .rank {
-            font-size: 1em; /* Slightly smaller rank on mobile */
-        }
-        .points-container {
-            min-width: 80px; /* Adjusted for mobile */
-            right: 6px; /* Match mobile padding */
+
+        .leader-photo {
+            width: 50px;
+            height: 50px;
         }
     }
 </style>
