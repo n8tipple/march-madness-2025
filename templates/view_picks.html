@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="text-primary mb-3">View Picks for Closed Rounds</h2>
+<div class="page-header">
+    <h2 class="page-title">View Picks</h2>
+    <p class="page-subtitle">Review closed-round picks in summary or detailed mode.</p>
+</div>
 
 <!-- Define round name mapping -->
 {% set round_name_map = {
@@ -23,8 +26,8 @@
 } %}
 
 <!-- Round Selector Buttons -->
-<div class="d-block mb-4">
-    <div class="btn-group flex-wrap w-100" role="group">
+<div class="d-block mb-4 surface-soft">
+    <div class="btn-group flex-wrap w-100 round-buttons" role="group">
         {% set round_order = ['Championship', 'Final 4', 'Elite 8', 'Sweet 16', 'Second Round', 'First Round'] %}
         {% for round_name in round_order %}
             {% for round in closed_rounds if round.name in round_name_map and round_name_map[round.name] == round_name %}
@@ -39,7 +42,7 @@
 
 <!-- View Toggle Tabs -->
 <div class="d-block mb-4">
-    <div class="btn-group w-100" role="group">
+    <div class="btn-group w-100 view-buttons" role="group">
         <button class="btn btn-outline-primary view-tab active" data-view="summary">Summary View</button>
         <button class="btn btn-outline-primary view-tab" data-view="detailed">Detailed View</button>
     </div>
@@ -87,50 +90,52 @@
         <h3>{{ full_name_map[round.name] }}</h3>
         <div class="row mt-3">
             {% for game in games_by_round[round.id] %}
-            <div class="col-md-6">
+            <div class="col-12 col-lg-6">
                 <div class="card mb-3 shadow-sm">
                     <div class="card-header bg-dark text-white">
                         <h5>{{ game.team1 }} vs {{ game.team2 }}</h5>
                     </div>
                     <div class="card-body">
                         <p><strong>Winner:</strong> {{ game.winner if game.winner else 'Not set' }}</p>
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th style="width: 30%;">User</th> <!-- Reduced from 40% to 30% -->
-                                    <th style="width: 45%;">Pick</th> <!-- Increased from 40% to 45% -->
-                                    <th style="width: 25%;" class="text-center">Points</th> <!-- Increased from 20% to 25% -->
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for pick in game.picks %}
-                                <tr class="{{ 'table-success' if pick.picked_team == game.winner else 'table-danger' if game.winner else '' }}">
-                                    <td>{{ pick.user.username }}</td>
-                                    <td>{{ pick.picked_team }}</td>
-                                    <td class="text-center">
-                                        {% if game.winner %}
-                                            {% if pick.picked_team == game.winner %}
-                                                {% if round.name == 'Championship' %}
-                                                    {{ pick.wager }}
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 30%;">User</th>
+                                        <th style="width: 45%;">Pick</th>
+                                        <th style="width: 25%;" class="text-center">Points</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for pick in game.picks %}
+                                    <tr class="{{ 'table-success' if pick.picked_team == game.winner else 'table-danger' if game.winner else '' }}">
+                                        <td>{{ pick.user.username }}</td>
+                                        <td>{{ pick.picked_team }}</td>
+                                        <td class="text-center">
+                                            {% if game.winner %}
+                                                {% if pick.picked_team == game.winner %}
+                                                    {% if round.name == 'Championship' %}
+                                                        {{ pick.wager }}
+                                                    {% else %}
+                                                        {{ round.point_value }}
+                                                    {% endif %}
+                                                {% elif round.name == 'Championship' %}
+                                                    -{{ pick.wager }}
                                                 {% else %}
-                                                    {{ round.point_value }}
+                                                    0
                                                 {% endif %}
-                                            {% elif round.name == 'Championship' %}
-                                                -{{ pick.wager }}
                                             {% else %}
                                                 0
                                             {% endif %}
-                                        {% else %}
-                                            0
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                {% if not game.picks %}
-                                    <tr><td colspan="3" class="text-muted">No picks made</td></tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% if not game.picks %}
+                                        <tr><td colspan="3" class="text-muted">No picks made</td></tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -201,8 +206,8 @@
     /* Grid Styles for Summary View */
     .grid-container {
         display: grid;
-        grid-template-columns: 150px repeat({{ user_totals_by_round.values()|first|length }}, 50px);
-        grid-auto-rows: min-content; /* Ensure rows take up necessary space */
+        grid-template-columns: 150px repeat({{ user_totals_by_round.values()|first|length }}, minmax(58px, 1fr));
+        grid-auto-rows: min-content;
         overflow-x: auto;
         border: 1px solid #dee2e6;
     }
@@ -226,6 +231,13 @@
         background-color: #fff;
         z-index: 5;
     }
+
+    .grid-game {
+        justify-content: flex-start;
+        padding-left: 0.45rem;
+        text-align: left;
+    }
+
     .rotated-text span {
         display: inline-block;
         transform: rotate(-90deg);
@@ -255,10 +267,47 @@
         display: none;
     }
     .btn-group {
-        display: flex; /* Ensure buttons stay connected */
+        display: flex;
     }
     .flex-wrap {
-        flex-wrap: wrap; /* Allow buttons to wrap on mobile */
+        flex-wrap: wrap;
+    }
+
+    .round-buttons .btn,
+    .view-buttons .btn {
+        font-size: 0.82rem;
+        padding: 0.45rem 0.35rem;
+    }
+
+    @media (min-width: 768px) {
+        .round-buttons .btn,
+        .view-buttons .btn {
+            font-size: 0.95rem;
+            padding: 0.48rem 0.75rem;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .grid-container {
+            grid-template-columns: 135px repeat({{ user_totals_by_round.values()|first|length }}, 58px);
+        }
+
+        .rotated-text span {
+            transform: rotate(0);
+        }
+
+        .rotated-text {
+            height: auto;
+            min-height: 40px;
+        }
+
+        .grid-header,
+        .grid-game,
+        .grid-cell,
+        .grid-total {
+            font-size: 0.78rem;
+            line-height: 1.2;
+        }
     }
 </style>
 {% endblock %}

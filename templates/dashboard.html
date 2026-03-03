@@ -1,38 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container text-center">
-    <div class="row">
-        <!-- Winner -->
-        <div class="col-md-6 mb-4">
-            <h2 class="text-success">Current Winner 🎉🎉🎉</h3>
-            {% if winner %}
-                <img src="{{ url_for('static', filename=winner.picture) }}" class="img-thumbnail mb-2" 
-                     style="width: 300px; height: 300px; object-fit: cover;" 
-                     data-bs-toggle="modal" data-bs-target="#picModalWinner" alt="{{ winner.username }}'s picture">
-                <h4>{{ winner.fun_name }} ({{ winner.username }})</h4>
-                <p>{{ winner.points }} points</p>
-            {% else %}
-                <p>No winner yet.</p>
-            {% endif %}
+<div class="text-center">
+    <div class="page-header">
+        <h2 class="page-title">Dashboard</h2>
+        <p class="page-subtitle">Quick look at current standings and shortcuts.</p>
+    </div>
+    <div class="row g-3">
+        <div class="col-12 col-lg-6">
+            <div class="dash-card h-100">
+                <h2 class="text-success mb-3">Current Winner</h2>
+                {% if winner %}
+                    <img src="{{ url_for('static', filename=winner.picture) }}" class="img-thumbnail profile-photo mb-2"
+                         data-bs-toggle="modal" data-bs-target="#picModalWinner" alt="{{ winner.username }} picture">
+                    <h4 class="mb-1">{{ winner.fun_name }} ({{ winner.username }})</h4>
+                    <p class="mb-0">{{ winner.points }} points</p>
+                {% else %}
+                    <p class="mb-0">No winner yet.</p>
+                {% endif %}
+            </div>
         </div>
-        <!-- Loser -->
-        <div class="col-md-6 mb-4">
-            <h2 class="text-danger">Current Loser 😭😭😭</h3>
-            {% if loser %}
-                <img src="{{ url_for('static', filename=loser.picture) }}" class="img-thumbnail mb-2" 
-                     style="width: 300px; height: 300px; object-fit: cover;" 
-                     data-bs-toggle="modal" data-bs-target="#picModalLoser" alt="{{ loser.username }}'s picture">
-                <h4>{{ loser.fun_name }} ({{ loser.username }})</h4>
-                <p>{{ loser.points }} points</p>
-            {% else %}
-                <p>No loser yet.</p>
-            {% endif %}
+        <div class="col-12 col-lg-6">
+            <div class="dash-card h-100">
+                <h2 class="text-danger mb-3">Current Loser</h2>
+                {% if loser %}
+                    <img src="{{ url_for('static', filename=loser.picture) }}" class="img-thumbnail profile-photo mb-2"
+                         data-bs-toggle="modal" data-bs-target="#picModalLoser" alt="{{ loser.username }} picture">
+                    <h4 class="mb-1">{{ loser.fun_name }} ({{ loser.username }})</h4>
+                    <p class="mb-0">{{ loser.points }} points</p>
+                {% else %}
+                    <p class="mb-0">No loser yet.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
-    <div class="mt-4">
-        <a href="{{ url_for('pick') }}" class="btn btn-primary d-block d-md-inline-block my-2 mx-md-2">Make Picks</a>
-        <a href="{{ url_for('view_picks') }}" class="btn btn-primary d-block d-md-inline-block my-2 mx-md-2">View Picks</a>
-        <a href="{{ url_for('leaderboard') }}" class="btn btn-primary d-block d-md-inline-block my-2 mx-md-2">Leaderboard</a>
+    <div class="action-row justify-content-center">
+        <a href="{{ url_for('pick') }}" class="btn btn-primary">Make Picks</a>
+        <a href="{{ url_for('view_picks') }}" class="btn btn-outline-primary">View Picks</a>
+        <a href="{{ url_for('leaderboard') }}" class="btn btn-outline-primary">Leaderboard</a>
     </div>
 </div>
 
@@ -69,4 +73,19 @@
     </div>
 </div>
 {% endif %}
+
+<style>
+    .dash-card {
+        border: 1px solid #dce4ee;
+        border-radius: 0.8rem;
+        padding: 1rem;
+        background: #f8fbff;
+    }
+
+    .profile-photo {
+        width: min(68vw, 260px);
+        height: min(68vw, 260px);
+        object-fit: cover;
+    }
+</style>
 {% endblock %}

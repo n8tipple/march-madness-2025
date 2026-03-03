@@ -10,12 +10,25 @@ from sqlalchemy.orm import joinedload
 app = Flask(__name__)
 
 try:
+    app.config['TOURNAMENT_YEAR'] = int(os.getenv('TOURNAMENT_YEAR', '2026'))
+except ValueError:
+    app.config['TOURNAMENT_YEAR'] = 2026
+
+try:
     with open('secret_key.txt', 'r') as f:
         app.config['SECRET_KEY'] = f.read().strip()
 except FileNotFoundError:
     raise Exception("Error: secret_key.txt not found in project directory. Please create it with a secure key.")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres.klggxmynqzhtoxoalngl:U%40FTA_mZhava.6y@aws-0-us-west-1.pooler.supabase.com:6543/postgres')
+database_url = os.getenv('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+if not database_url:
+    os.makedirs(app.instance_path, exist_ok=True)
+    local_db_name = f"mm{app.config['TOURNAMENT_YEAR']}.db"
+    database_url = f"sqlite:///{os.path.join(app.instance_path, local_db_name)}"
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Set up logging
@@ -29,7 +42,7 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 # Models
 class User(db.Model, UserMixin):
@@ -61,7 +74,7 @@ class Game(db.Model):
     team1 = db.Column(db.String(100), nullable=False)
     team2 = db.Column(db.String(100), nullable=False)
     winner = db.Column(db.String(100), nullable=True)
-    picks = db.relationship('Pick', backref='game_instance')
+    picks = db.relationship('Pick', back_populates='game', cascade='all, delete-orphan')
 
 class Pick(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -71,9 +84,16 @@ class Pick(db.Model):
     wager = db.Column(db.Integer, default=0)
     points = db.Column(db.Integer, default=0)
     user = db.relationship('User', backref='picks')
-    game = db.relationship('Game', backref='game_picks')
+    game = db.relationship('Game', back_populates='picks')
 
 # Helper Functions
+def parse_non_negative_int(value, default=0):
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return default
+
+
 def calculate_points(round):
     games = Game.query.filter_by(round_id=round.id).filter(Game.winner.isnot(None)).all()
     picks = Pick.query.filter(Pick.game_id.in_([g.id for g in games])).all()
@@ -125,16 +145,18 @@ def get_users_with_points():
 # Context Processor for Navbar Points
 @app.context_processor
 def inject_user_points():
+    tournament_year = app.config['TOURNAMENT_YEAR']
     if current_user.is_authenticated:
         closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
         total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == current_user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
-        return {'user_points': total_points}
-    return {'user_points': 0}
+        return {'user_points': total_points, 'tournament_year': tournament_year}
+    return {'user_points': 0, 'tournament_year': tournament_year}
 
 # Routes
 @app.route('/')
 def home():
-    all_rounds_complete = not Round.query.join(Game).filter(Game.winner.is_(None)).first()
+    pending_game = Round.query.join(Game).filter(Game.winner.is_(None)).first()
+    all_rounds_complete = pending_game is None and Round.query.first() is not None
     if all_rounds_complete:
         users = get_users_with_points()
         return render_template('leaderboard.html', users=users, final=True)
@@ -200,23 +222,24 @@ def pick():
                 picked_team = request.form.get(f'game{game.id}')
                 if not picked_team or picked_team not in [game.team1, game.team2]:
                     error_game_id = game.id
-                    wager = int(request.form.get('wager', 0)) if current_round.name == 'Championship' else 0
+                    wager = parse_non_negative_int(request.form.get('wager', 0), default=0) if current_round.name == 'Championship' else 0
                     break
                 else:
                     existing_pick = existing_picks.get(game.id)
                     if existing_pick:
                         existing_pick.picked_team = picked_team
                         if current_round.name == 'Championship':
-                            wager = int(request.form.get('wager', existing_pick.wager))
+                            wager = parse_non_negative_int(request.form.get('wager', existing_pick.wager), default=existing_pick.wager)
                             existing_pick.wager = max(0, min(wager, user_total_points))
                     else:
                         pick = Pick(user_id=current_user.id, game_id=game.id, picked_team=picked_team)
                         if current_round.name == 'Championship':
-                            wager = int(request.form.get('wager', 0))
+                            wager = parse_non_negative_int(request.form.get('wager', 0), default=0)
                             pick.wager = max(0, min(wager, user_total_points))
                         db.session.add(pick)
 
             if error_game_id:
+                db.session.rollback()
                 return render_template('pick.html', games=games, existing_picks=existing_picks, current_round=current_round,
                                        user_points=user_total_points, error_game_id=error_game_id, wager=wager)
 
@@ -294,11 +317,11 @@ def view_picks():
 @login_required
 def admin():
     if not current_user.is_admin:
-        flash('Access denied', 'error')
+        flash('Access denied', 'danger')
         return redirect(url_for('home'))
     all_rounds = Round.query.order_by(Round.id).all()
     selected_round_id = request.args.get('round_id', type=int) or (all_rounds[-1].id if all_rounds else None)
-    selected_round = Round.query.get(selected_round_id) if selected_round_id else None
+    selected_round = db.session.get(Round, selected_round_id) if selected_round_id else None
 
     # Check if the user is Chris for the prank
     is_chris = current_user.username.lower() == 'chris'
@@ -306,7 +329,7 @@ def admin():
     if request.method == 'POST':
         round_id = request.form.get('round_id', type=int)
         if round_id:
-            selected_round = Round.query.get(round_id)
+            selected_round = db.session.get(Round, round_id)
             if selected_round:
                 for game in selected_round.games:
                     winner = request.form.get(f'game{game.id}_winner')
@@ -330,7 +353,7 @@ def admin():
                             else:
                                 game.winner = None
                         else:
-                            flash(f'Invalid teams selected for {game.team1} vs {game.team2}', 'error')
+                            flash(f'Invalid teams selected for {game.team1} vs {game.team2}', 'danger')
                 
                 selected_round.closed = request.form.get('closed') == 'on'
                 selected_round.closed_for_selection = selected_round.closed
@@ -356,12 +379,12 @@ def admin():
                         else:
                             flash(f'{next_round_name} already exists', 'warning')
                     else:
-                        flash('Cannot create next round: All winners must be set', 'error')
+                        flash('Cannot create next round: All winners must be set', 'danger')
                 
                 db.session.commit()
                 calculate_points(selected_round)
                 flash(f'{selected_round.name} saved successfully', 'success')
-        return redirect(url_for('admin', round_id=selected_round_id))
+        return redirect(url_for('admin', round_id=selected_round.id if selected_round else selected_round_id))
     
     prev_round = None
     if selected_round and selected_round.name != 'First Round (Round of 64)':
@@ -388,12 +411,15 @@ def admin():
 @login_required
 def admin_submit_picks():
     if not current_user.is_admin:
-        flash('Access denied', 'error')
+        flash('Access denied', 'danger')
         return redirect(url_for('home'))
     
     all_open_rounds = Round.query.filter_by(closed=False).order_by(Round.id).all()
     selected_round_id = request.form.get('round_id', type=int) or request.args.get('round_id', type=int) or (all_open_rounds[0].id if all_open_rounds else None)
-    current_round = Round.query.get(selected_round_id) if selected_round_id and all_open_rounds else None
+    open_round_ids = {round_obj.id for round_obj in all_open_rounds}
+    if selected_round_id not in open_round_ids:
+        selected_round_id = all_open_rounds[0].id if all_open_rounds else None
+    current_round = db.session.get(Round, selected_round_id) if selected_round_id else None
     users = User.query.all()
     
     if not current_round:
@@ -402,7 +428,7 @@ def admin_submit_picks():
     
     games = Game.query.filter_by(round_id=current_round.id).all()
     selected_user_id = request.form.get('user_id', type=int) if request.method == 'POST' else request.args.get('user_id', type=int)
-    selected_user = User.query.get(selected_user_id) if selected_user_id else None
+    selected_user = db.session.get(User, selected_user_id) if selected_user_id else None
     
     selected_user_points = 0
     if selected_user:
@@ -422,23 +448,24 @@ def admin_submit_picks():
                 picked_team = request.form.get(f'game{game.id}')
                 if not picked_team or picked_team not in [game.team1, game.team2]:
                     error_game_id = game.id
-                    wager = int(request.form.get('wager', 0)) if current_round.name == 'Championship' else 0
+                    wager = parse_non_negative_int(request.form.get('wager', 0), default=0) if current_round.name == 'Championship' else 0
                     break
                 else:
                     existing_pick = Pick.query.filter_by(user_id=selected_user.id, game_id=game.id).first()
                     if existing_pick:
                         existing_pick.picked_team = picked_team
                         if current_round.name == 'Championship':
-                            wager = int(request.form.get('wager', existing_pick.wager))
+                            wager = parse_non_negative_int(request.form.get('wager', existing_pick.wager), default=existing_pick.wager)
                             existing_pick.wager = max(0, min(wager, selected_user_points))
                     else:
                         pick = Pick(user_id=selected_user.id, game_id=game.id, picked_team=picked_team)
                         if current_round.name == 'Championship':
-                            wager = int(request.form.get('wager', 0))
+                            wager = parse_non_negative_int(request.form.get('wager', 0), default=0)
                             pick.wager = max(0, min(wager, selected_user_points))
                         db.session.add(pick)
             
             if error_game_id:
+                db.session.rollback()
                 return render_template('admin_submit_picks.html', all_open_rounds=all_open_rounds, current_round=current_round,
                                        games=games, users=users, existing_picks=existing_picks,
                                        selected_user_id=selected_user_id, selected_user=selected_user,

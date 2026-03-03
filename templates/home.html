@@ -1,14 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Welcome to March Madness Organizer</h2>
-{% if current_round %}
-    <p>Current Round: {{ current_round.name }}</p>
-    <a href="{{ url_for('pick') }}" class="btn btn-primary">Make Picks</a>
-    <a href="{{ url_for('leaderboard') }}" class="btn btn-secondary">View Leaderboard</a>
-    {% if current_user.is_admin %}
-        <a href="{{ url_for('admin') }}" class="btn btn-danger">Admin Panel</a>
+<section class="hero">
+    <div class="page-header">
+        <h1 class="page-title">March Madness {{ tournament_year }}</h1>
+        <p class="page-subtitle">Bracket organizer and score tracker.</p>
+    </div>
+
+    {% if current_round %}
+        <div class="status-pill mb-3">
+            <span class="badge bg-primary">Current Round</span>
+            <span>{{ current_round.name }}</span>
+        </div>
+        <div class="action-row">
+            <a href="{{ url_for('pick') }}" class="btn btn-primary">Make Picks</a>
+            <a href="{{ url_for('leaderboard') }}" class="btn btn-outline-primary">View Leaderboard</a>
+            {% if current_user.is_admin %}
+                <a href="{{ url_for('admin') }}" class="btn btn-outline-danger">Admin Panel</a>
+            {% endif %}
+        </div>
+    {% else %}
+        <p class="mb-0">No active round right now. Check back soon.</p>
     {% endif %}
-{% else %}
-    <p>No current round. Check back later.</p>
-{% endif %}
+</section>
+
+<style>
+    .hero {
+        padding: 0.25rem 0.15rem;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        border: 1px solid #dce4ee;
+        border-radius: 999px;
+        padding: 0.4rem 0.75rem;
+        background: #f8fbff;
+        font-size: 0.95rem;
+    }
+</style>
 {% endblock %}
