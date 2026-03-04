@@ -8,10 +8,13 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, curren
 from flask_bcrypt import Bcrypt
 import logging
 import time
+from dotenv import load_dotenv
 from sqlalchemy.dialects import registry as sqlalchemy_registry
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import joinedload
 from werkzeug.exceptions import HTTPException
+
+load_dotenv()
 
 app = Flask(__name__)
 
