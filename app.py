@@ -8,6 +8,8 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, curren
 from flask_bcrypt import Bcrypt
 import logging
 import time
+from sqlalchemy.dialects import registry as sqlalchemy_registry
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import joinedload
 from werkzeug.exceptions import HTTPException
 
@@ -50,16 +52,52 @@ def normalize_database_url(raw_url):
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
-database_url = os.getenv('DATABASE_URL')
-database_url = normalize_database_url(database_url)
-if not database_url:
+def mask_database_url(url):
+    if not url:
+        return 'not-set'
+    try:
+        parts = urlsplit(url)
+    except Exception:
+        return 'invalid-url'
+    if '@' in parts.netloc:
+        _, host_part = parts.netloc.rsplit('@', 1)
+    else:
+        host_part = parts.netloc
+    return f"{parts.scheme}://***@{host_part}{parts.path}"
+
+
+def build_local_sqlite_url():
     if os.getenv('VERCEL') == '1':
         local_base = '/tmp'
     else:
         local_base = app.instance_path
     os.makedirs(local_base, exist_ok=True)
     local_db_name = f"mm{app.config['TOURNAMENT_YEAR']}.db"
-    database_url = f"sqlite:///{os.path.join(local_base, local_db_name)}"
+    return f"sqlite:///{os.path.join(local_base, local_db_name)}"
+
+
+def is_supported_sqlalchemy_url(url):
+    try:
+        parsed = make_url(url)
+        sqlalchemy_registry.load(parsed.drivername)
+        return True, None
+    except Exception as exc:
+        return False, exc
+
+
+database_url = os.getenv('DATABASE_URL')
+database_url = normalize_database_url(database_url)
+if not database_url:
+    database_url = build_local_sqlite_url()
+
+is_supported_url, url_error = is_supported_sqlalchemy_url(database_url)
+if not is_supported_url:
+    print(
+        f"WARNING: Invalid DATABASE_URL '{mask_database_url(database_url)}': {url_error}. "
+        "Falling back to local SQLite.",
+        file=sys.stderr,
+    )
+    database_url = build_local_sqlite_url()
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -88,20 +126,6 @@ class RequestIdFilter(logging.Filter):
 request_id_filter = RequestIdFilter()
 for handler in logging.getLogger().handlers:
     handler.addFilter(request_id_filter)
-
-
-def mask_database_url(url):
-    if not url:
-        return 'not-set'
-    try:
-        parts = urlsplit(url)
-    except Exception:
-        return 'invalid-url'
-    if '@' in parts.netloc:
-        _, host_part = parts.netloc.rsplit('@', 1)
-    else:
-        host_part = parts.netloc
-    return f"{parts.scheme}://***@{host_part}{parts.path}"
 
 
 logger.info(
