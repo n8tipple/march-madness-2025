@@ -45,35 +45,43 @@
     </div>
     {% endif %}
 
-    <div class="game-list">
-        {% for game in games %}
-        {% set existing_pick = existing_picks.get(game.id) %}
-        <fieldset id="game-row-{{ game.id }}" class="game-card mb-3">
-            <legend class="game-title">Game {{ loop.index }}</legend>
-            <p class="game-matchup">{{ game.team1 }} vs {{ game.team2 }}</p>
-            <div class="row g-2">
-                <div class="col-12 col-md-6">
-                    <div class="form-check team-option">
-                        <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team1 }}"
-                            id="game{{ game.id }}_team1"
-                            {% if existing_pick and existing_pick.picked_team == game.team1 %}checked{% endif %}>
-                        <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
-                    </div>
-                </div>
-                <div class="col-12 col-md-6">
-                    <div class="form-check team-option">
-                        <input type="radio" class="form-check-input pick-radio" name="game{{ game.id }}" value="{{ game.team2 }}"
-                            id="game{{ game.id }}_team2"
-                            {% if existing_pick and existing_pick.picked_team == game.team2 %}checked{% endif %}>
-                        <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
-                    </div>
-                </div>
-            </div>
-            <div id="error-row-{{ game.id }}" class="alert alert-danger error-row d-none mt-3 mb-0" role="alert">
-                Please select a team for this game.
-            </div>
-        </fieldset>
-        {% endfor %}
+    <div id="pickError" class="alert alert-danger d-none" role="alert">
+        Please select a winner for every game before submitting.
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th class="game-col">Game</th>
+                    <th>Team 1</th>
+                    <th>Team 2</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for game in games %}
+                {% set existing_pick = existing_picks.get(game.id) %}
+                <tr id="game-row-{{ game.id }}">
+                    <td class="text-nowrap">Game {{ loop.index }}</td>
+                    <td class="pick-cell" data-radio-id="game{{ game.id }}_team1">
+                        <div class="form-check">
+                            <input type="radio" class="form-check-input" name="game{{ game.id }}" value="{{ game.team1 }}"
+                                id="game{{ game.id }}_team1"
+                                {% if existing_pick and existing_pick.picked_team == game.team1 %}checked{% endif %}>
+                            <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
+                        </div>
+                    </td>
+                    <td class="pick-cell" data-radio-id="game{{ game.id }}_team2">
+                        <div class="form-check">
+                            <input type="radio" class="form-check-input" name="game{{ game.id }}" value="{{ game.team2 }}"
+                                id="game{{ game.id }}_team2"
+                                {% if existing_pick and existing_pick.picked_team == game.team2 %}checked{% endif %}>
+                            <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     <div class="action-row">
         <button type="submit" name="submit_picks" class="btn btn-primary submit-btn">Submit Picks</button>
@@ -83,15 +91,30 @@
 
 <script>
     {% if error_game_id %}
-        document.getElementById('error-row-{{ error_game_id }}').classList.remove('d-none');
+        document.getElementById('pickError').classList.remove('d-none');
+        document.getElementById('game-row-{{ error_game_id }}').classList.add('table-danger');
         document.getElementById('game-row-{{ error_game_id }}').scrollIntoView({ behavior: 'smooth', block: 'center' });
     {% endif %}
 
     const submitPicksForm = document.getElementById('submitPicksForm');
     if (submitPicksForm) {
+        document.querySelectorAll('.pick-cell').forEach(function(cell) {
+            cell.addEventListener('click', function(event) {
+                if (event.target.closest('input, label, select, option, button, a')) {
+                    return;
+                }
+                const radioId = cell.getAttribute('data-radio-id');
+                const radio = radioId ? document.getElementById(radioId) : null;
+                if (radio) {
+                    radio.checked = true;
+                }
+            });
+        });
+
         submitPicksForm.addEventListener('submit', function(event) {
-            document.querySelectorAll('.error-row').forEach(function(row) {
-                row.classList.add('d-none');
+            document.getElementById('pickError').classList.add('d-none');
+            document.querySelectorAll('tr[id^="game-row-"]').forEach(function(row) {
+                row.classList.remove('table-danger');
             });
 
             let firstEmptyGameId = null;
@@ -106,8 +129,10 @@
 
             if (firstEmptyGameId) {
                 event.preventDefault();
-                document.getElementById('error-row-' + firstEmptyGameId).classList.remove('d-none');
-                document.getElementById('game-row-' + firstEmptyGameId).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                document.getElementById('pickError').classList.remove('d-none');
+                const firstRow = document.getElementById('game-row-' + firstEmptyGameId);
+                firstRow.classList.add('table-danger');
+                firstRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return false;
             }
         });
@@ -120,30 +145,16 @@
         padding: 0.75rem;
     }
 
-    .game-card {
-        border: 1px solid #dce4ee;
-        border-radius: 0.8rem;
-        padding: 0.9rem;
-        background: #fbfdff;
+    .game-col {
+        min-width: 80px;
     }
 
-    .game-title {
-        font-size: 1rem;
-        font-weight: 700;
-        margin-bottom: 0.35rem;
+    .pick-cell {
+        cursor: pointer;
     }
 
-    .game-matchup {
-        font-size: 0.95rem;
-        color: #4b5c70;
-        margin-bottom: 0.65rem;
-    }
-
-    .team-option {
-        border: 1px solid #dce4ee;
-        border-radius: 0.65rem;
-        padding: 0.65rem 0.75rem;
-        background: #fff;
+    .pick-cell:hover {
+        background-color: #f5f8fc;
     }
 
     .submit-btn {
@@ -151,10 +162,6 @@
     }
 
     @media (min-width: 768px) {
-        .game-card {
-            padding: 1rem;
-        }
-
         .submit-btn {
             width: auto;
         }

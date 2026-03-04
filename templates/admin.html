@@ -61,7 +61,7 @@
                 <tbody>
                     {% for game in selected_round.games %}
                     <tr>
-                        <td class="pick-cell">
+                        <td class="pick-cell" data-radio-id="game{{ game.id }}_team1">
                             {% if selected_round.name == 'First Round (Round of 64)' %}
                                 <div class="form-check">
                                     <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team1 }}"
@@ -88,7 +88,7 @@
                                 </div>
                             {% endif %}
                         </td>
-                        <td class="pick-cell">
+                        <td class="pick-cell" data-radio-id="game{{ game.id }}_team2">
                             {% if selected_round.name == 'First Round (Round of 64)' %}
                                 <div class="form-check">
                                     <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team2 }}"
@@ -150,6 +150,19 @@
         document.addEventListener('DOMContentLoaded', function() {
             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
+
+            document.querySelectorAll('.pick-cell').forEach(function(cell) {
+                cell.addEventListener('click', function(event) {
+                    if (event.target.closest('input, label, select, option, button, a')) {
+                        return;
+                    }
+                    const radioId = cell.getAttribute('data-radio-id');
+                    const radio = radioId ? document.getElementById(radioId) : null;
+                    if (radio) {
+                        radio.checked = true;
+                    }
+                });
+            });
         });
     </script>
     <style>
