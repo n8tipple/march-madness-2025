@@ -238,11 +238,13 @@
         display: grid;
         grid-template-columns: 150px repeat({{ user_totals_by_round.values()|first|length }}, minmax(58px, 1fr));
         grid-auto-rows: min-content;
+        max-height: 70vh;
         overflow: auto;
         border: 1px solid #e1cfb3;
         border-radius: 0.86rem;
         background: #fffdfa;
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+        overscroll-behavior: contain;
     }
 
     .grid-header, .grid-game, .grid-cell, .grid-total {
@@ -284,14 +286,14 @@
     }
 
     .rotated-text {
-        height: 95px;
+        height: 108px;
         align-items: flex-end;
         padding-bottom: 0.45rem;
     }
 
     .rotated-text span {
         display: inline-block;
-        transform: rotate(-76deg);
+        transform: rotate(-90deg);
         transform-origin: center center;
         white-space: nowrap;
         font-size: 0.76rem;
@@ -363,16 +365,14 @@
             grid-template-columns: 135px repeat({{ user_totals_by_round.values()|first|length }}, 58px);
         }
 
-        .rotated-text span {
-            transform: rotate(0);
-            font-size: 0.72rem;
+        .rotated-text {
+            height: 102px;
+            min-height: 102px;
         }
 
-        .rotated-text {
-            height: auto;
-            min-height: 40px;
-            align-items: center;
-            padding-bottom: 0;
+        .rotated-text span {
+            transform: rotate(-90deg);
+            font-size: 0.7rem;
         }
 
         .grid-header,
