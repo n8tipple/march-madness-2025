@@ -6,6 +6,12 @@
 </div>
 
 <form method="POST" id="pickForm">
+    <div class="pick-tools mb-3">
+        <button type="button" class="btn btn-outline-primary random-btn" id="randomPickBtn">
+            <i class="fas fa-random me-1"></i>Random Winners
+        </button>
+    </div>
+
     {% if current_round.name == 'Championship' %}
     <div class="mb-3 wager-card surface-soft">
         <label for="wagerInput" class="form-label mb-1">Wager (Max: {{ user_points }} points)</label>
@@ -74,6 +80,27 @@
         });
     });
 
+    const randomPickBtn = document.getElementById('randomPickBtn');
+    if (randomPickBtn) {
+        randomPickBtn.addEventListener('click', function() {
+            document.getElementById('pickError').classList.add('d-none');
+            document.querySelectorAll('tr[id^="game-row-"]').forEach(function(row) {
+                row.classList.remove('table-danger');
+            });
+
+            {% for game in games %}
+                const randomOptions{{ game.id }} = [
+                    document.getElementById('game{{ game.id }}_team1'),
+                    document.getElementById('game{{ game.id }}_team2')
+                ];
+                const randomPick{{ game.id }} = randomOptions{{ game.id }}[Math.floor(Math.random() * randomOptions{{ game.id }}.length)];
+                if (randomPick{{ game.id }}) {
+                    randomPick{{ game.id }}.checked = true;
+                }
+            {% endfor %}
+        });
+    }
+
     document.getElementById('pickForm').addEventListener('submit', function(event) {
         document.getElementById('pickError').classList.add('d-none');
         document.querySelectorAll('tr[id^="game-row-"]').forEach(function(row) {
@@ -102,6 +129,15 @@
 </script>
 
 <style>
+    .pick-tools {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .random-btn {
+        width: 100%;
+    }
+
     .wager-card {
         max-width: 360px;
         padding: 0.85rem;
@@ -133,6 +169,10 @@
     }
 
     @media (min-width: 768px) {
+        .random-btn {
+            width: auto;
+        }
+
         .submit-btn {
             width: auto;
         }

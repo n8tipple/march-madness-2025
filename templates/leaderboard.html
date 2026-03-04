@@ -15,17 +15,17 @@
     {% for user in users %}
     {% set fill_pct = ((user.points if user.points > 0 else 0) / max_points * 100)|float %}
     <div class="leaderboard-item mb-2 p-2 p-md-3 rounded">
-        <div class="d-flex align-items-center gap-2">
+        <div class="leader-row">
             <div class="rank-badge">#{{ loop.index }}</div>
             <img src="{{ url_for('static', filename=user.picture) }}" class="leader-photo"
                  data-bs-toggle="modal" data-bs-target="#picModal{{ user.id }}" alt="{{ user.username }} picture">
-            <div class="flex-grow-1 overflow-hidden">
+            <div class="leader-main">
                 <div class="leader-name">{{ user.fun_name }} ({{ user.username }})</div>
                 <div class="progress mt-1">
                     <div class="progress-bar" role="progressbar" style="width: {{ fill_pct }}%;" aria-valuenow="{{ fill_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
             </div>
-            <div class="text-end leader-points">
+            <div class="leader-points">
                 <span class="badge bg-dark">{{ user.points }} pts</span>
             </div>
         </div>
@@ -68,11 +68,18 @@
         box-shadow: 0 13px 24px rgba(20, 31, 47, 0.12);
     }
 
+    .leader-row {
+        display: grid;
+        grid-template-columns: auto auto minmax(0, 1fr);
+        align-items: center;
+        gap: 0.55rem;
+    }
+
     .rank-badge {
-        min-width: 58px;
+        min-width: 54px;
         text-align: center;
         font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
-        font-size: 1.15rem;
+        font-size: 1.05rem;
         font-weight: 700;
         color: #163754;
         background: linear-gradient(125deg, #ffe8bf 0%, #ffd088 100%);
@@ -83,8 +90,8 @@
     }
 
     .leader-photo {
-        width: 48px;
-        height: 48px;
+        width: 46px;
+        height: 46px;
         object-fit: cover;
         border: 2px solid #f5e2c7;
         border-radius: 0.78rem;
@@ -92,12 +99,21 @@
         box-shadow: 0 5px 14px rgba(20, 31, 47, 0.15);
     }
 
+    .leader-main {
+        min-width: 0;
+    }
+
     .leader-name {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        white-space: normal;
+        overflow-wrap: anywhere;
         font-weight: 700;
         font-size: 0.94rem;
+        line-height: 1.2;
+    }
+
+    .leader-points {
+        grid-column: 1 / -1;
+        justify-self: end;
     }
 
     .leader-points .badge {
@@ -120,6 +136,16 @@
             padding: 0.95rem;
         }
 
+        .leader-row {
+            grid-template-columns: auto auto minmax(0, 1fr) auto;
+            gap: 0.85rem;
+        }
+
+        .rank-badge {
+            min-width: 60px;
+            font-size: 1.18rem;
+        }
+
         .leader-photo {
             width: 56px;
             height: 56px;
@@ -127,6 +153,11 @@
 
         .leader-name {
             font-size: 1.04rem;
+        }
+
+        .leader-points {
+            grid-column: auto;
+            justify-self: end;
         }
     }
 </style>
