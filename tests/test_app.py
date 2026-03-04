@@ -402,8 +402,9 @@ class ViewAndLeaderboardRouteTests(BaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Sweet 16", response.data)
         self.assertIn(b"A vs B", response.data)
+        self.assertIn(b"<strong>A</strong>", response.data)
         self.assertIn(b"Round Total", response.data)
-        self.assertIn(b"Won", response.data)
+        self.assertNotIn(b">Result<", response.data)
 
     def test_view_picks_requires_login(self):
         response = self.client.get("/view_picks")

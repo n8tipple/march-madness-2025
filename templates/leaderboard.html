@@ -77,33 +77,32 @@
                                         <table class="table table-sm mb-0">
                                             <thead>
                                                 <tr>
-                                                    <th style="width: 34%;">Game</th>
-                                                    <th style="width: 22%;">Pick</th>
-                                                    <th style="width: 22%;">Winner</th>
-                                                    <th style="width: 12%;" class="text-center">Result</th>
-                                                    <th style="width: 10%;" class="text-center">Pts</th>
+                                                    <th style="width: 58%;">Game</th>
+                                                    <th style="width: 27%;">Winner</th>
+                                                    <th style="width: 15%;" class="text-center">Pts</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {% if round_data.rows %}
                                                     {% for row in round_data.rows %}
                                                     <tr class="{{ 'table-success' if row.result_key == 'win' else 'table-danger' if row.result_key == 'loss' else '' }}">
-                                                        <td>{{ row.game }}</td>
-                                                        <td>{{ row.picked_team }}</td>
+                                                        <td>
+                                                            <div>{{ row.game }}</div>
+                                                            <div class="leader-inline-pick"><strong>{{ row.picked_team }}</strong></div>
+                                                        </td>
                                                         <td>{{ row.winner }}</td>
-                                                        <td class="text-center">{{ row.result_label }}</td>
                                                         <td class="text-center">{{ row.points }}</td>
                                                     </tr>
                                                     {% endfor %}
                                                 {% else %}
                                                     <tr>
-                                                        <td colspan="5" class="text-muted">No games found for this round.</td>
+                                                        <td colspan="3" class="text-muted">No games found for this round.</td>
                                                     </tr>
                                                 {% endif %}
                                             </tbody>
                                             <tfoot>
                                                 <tr class="table-dark">
-                                                    <th colspan="4" class="text-end">Round Total</th>
+                                                    <th colspan="2" class="text-end">Round Total</th>
                                                     <th class="text-center">{{ round_data.round_total }}</th>
                                                 </tr>
                                             </tfoot>
@@ -273,6 +272,11 @@
 
     .leader-modal-table-wrap td {
         font-size: 0.82rem;
+    }
+
+    .leader-inline-pick {
+        margin-top: 0.12rem;
+        color: #133450;
     }
 
     @media (min-width: 768px) {
