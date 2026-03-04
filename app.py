@@ -1,12 +1,14 @@
 import os
+import uuid
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, g, has_request_context
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from flask_bcrypt import Bcrypt
 import logging
 import time
 from sqlalchemy.orm import joinedload
+from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
 
@@ -53,13 +55,77 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+log_level_name = os.getenv('LOG_LEVEL', 'INFO').upper()
+log_level = getattr(logging, log_level_name, logging.INFO)
+logging.basicConfig(
+    level=log_level,
+    format='%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s',
+)
 logger = logging.getLogger(__name__)
 
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+
+class RequestIdFilter(logging.Filter):
+    def filter(self, record):
+        record.request_id = getattr(g, 'request_id', '-') if has_request_context() else '-'
+        return True
+
+
+request_id_filter = RequestIdFilter()
+for handler in logging.getLogger().handlers:
+    handler.addFilter(request_id_filter)
+
+
+def mask_database_url(url):
+    if not url:
+        return 'not-set'
+    try:
+        parts = urlsplit(url)
+    except Exception:
+        return 'invalid-url'
+    if '@' in parts.netloc:
+        _, host_part = parts.netloc.rsplit('@', 1)
+    else:
+        host_part = parts.netloc
+    return f"{parts.scheme}://***@{host_part}{parts.path}"
+
+
+logger.info(
+    "App startup: env=%s vercel=%s tournament_year=%s db=%s",
+    os.getenv('FLASK_ENV', 'production'),
+    os.getenv('VERCEL', '0'),
+    app.config['TOURNAMENT_YEAR'],
+    mask_database_url(database_url),
+)
+
+
+@app.before_request
+def assign_request_id():
+    g.request_id = request.headers.get('x-request-id') or uuid.uuid4().hex[:12]
+    logger.info("Request start %s %s", request.method, request.path)
+
+
+@app.after_request
+def log_response(response):
+    logger.info("Request end %s %s -> %s", request.method, request.path, response.status_code)
+    response.headers['X-Request-ID'] = getattr(g, 'request_id', '-')
+    return response
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_exception(error):
+    if isinstance(error, HTTPException):
+        return error
+    error_id = getattr(g, 'request_id', uuid.uuid4().hex[:12])
+    logger.exception("Unhandled exception error_id=%s path=%s", error_id, request.path)
+    return (
+        f"Internal Server Error. Error ID: {error_id}. Check server logs for details.",
+        500,
+    )
 
 @login_manager.user_loader
 def load_user(user_id):
