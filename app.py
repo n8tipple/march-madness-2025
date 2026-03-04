@@ -18,6 +18,9 @@ load_dotenv()
 
 app = Flask(__name__)
 
+STATIC_IMAGE_CACHE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30  # 30 days
+STATIC_IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif')
+
 
 def env_value(key, default=None):
     value = os.getenv(key, default)
@@ -160,6 +163,9 @@ def assign_request_id():
 def log_response(response):
     logger.info("Request end %s %s -> %s", request.method, request.path, response.status_code)
     response.headers['X-Request-ID'] = getattr(g, 'request_id', '-')
+    request_path = request.path.lower()
+    if request_path.startswith('/static/') and request_path.endswith(STATIC_IMAGE_EXTENSIONS):
+        response.headers['Cache-Control'] = f'public, max-age={STATIC_IMAGE_CACHE_MAX_AGE_SECONDS}'
     return response
 
 

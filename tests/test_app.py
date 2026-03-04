@@ -435,6 +435,16 @@ class ViewAndLeaderboardRouteTests(BaseTestCase):
         self.assertIn(b"Round Total", response.data)
         self.assertIn(user.username.encode("utf-8"), response.data)
 
+    def test_static_images_send_cache_headers(self):
+        response = self.client.get("/static/nate.png")
+        try:
+            self.assertEqual(response.status_code, 200)
+            cache_control = response.headers.get("Cache-Control", "")
+            self.assertIn("public", cache_control)
+            self.assertIn("max-age=2592000", cache_control)
+        finally:
+            response.close()
+
 
 if __name__ == "__main__":
     unittest.main()
