@@ -75,15 +75,15 @@
         flex-wrap: wrap;
         gap: 0.55rem;
         border: 1px solid #dfceb3;
-        border-radius: 999px;
-        padding: 0.42rem 0.75rem 0.42rem 0.45rem;
+        border-radius: 0.75rem;
+        padding: 0.5rem 0.75rem 0.52rem 0.5rem;
         background: #fffdf8;
         font-size: 0.92rem;
         box-shadow: 0 4px 14px rgba(20, 31, 47, 0.08);
     }
 
     .status-label {
-        border-radius: 999px;
+        border-radius: 0.75rem;
         padding: 0.28rem 0.65rem;
         background: #fce3d2;
         color: #903712;
@@ -136,10 +136,69 @@
             <div class="backboard" id="courtBackboard"></div>
             <div class="rim-support"></div>
             <div class="rim" id="courtRim"></div>
-            <div class="net"></div>
+            <div class="net">
+                <svg class="net-svg" viewBox="0 0 84 64" preserveAspectRatio="none" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="netStroke" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#f8fcff"/>
+                            <stop offset="100%" stop-color="#d5e2f2"/>
+                        </linearGradient>
+                        <linearGradient id="netShade" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stop-color="rgba(255,255,255,0.25)"/>
+                            <stop offset="100%" stop-color="rgba(103,122,146,0.2)"/>
+                        </linearGradient>
+                        <clipPath id="netClip">
+                            <path d="M8 4 H76 L63 62 H21 Z"></path>
+                        </clipPath>
+                    </defs>
+                    <path d="M8 4 H76 L63 62 H21 Z" fill="url(#netShade)" stroke="url(#netStroke)" stroke-width="2.2" stroke-linejoin="round"></path>
+                    <g clip-path="url(#netClip)" stroke="url(#netStroke)" stroke-width="1.55" stroke-linecap="round" opacity="0.94">
+                        <path d="M16 4 L24 62"></path>
+                        <path d="M26 4 L30 62"></path>
+                        <path d="M36 4 L36 62"></path>
+                        <path d="M48 4 L43 62"></path>
+                        <path d="M60 4 L50 62"></path>
+                        <path d="M72 4 L57 62"></path>
+                        <path d="M11 15 H73"></path>
+                        <path d="M14 26 H70"></path>
+                        <path d="M17 37 H67"></path>
+                        <path d="M19 48 H65"></path>
+                        <path d="M21 58 H63"></path>
+                    </g>
+                </svg>
+            </div>
             <div class="rim-hitbox" id="rimHitbox"></div>
         </div>
-        <div class="basketball" id="basketball" role="img" aria-label="Animated basketball"></div>
+        <div class="basketball" id="basketball" role="img" aria-label="Animated basketball">
+            <svg class="basketball-svg" viewBox="0 0 64 64" aria-hidden="true">
+                <defs>
+                    <radialGradient id="ballBase" cx="30%" cy="24%" r="78%">
+                        <stop offset="0%" stop-color="#ffcb7d"></stop>
+                        <stop offset="38%" stop-color="#f58e2f"></stop>
+                        <stop offset="73%" stop-color="#d76416"></stop>
+                        <stop offset="100%" stop-color="#a74710"></stop>
+                    </radialGradient>
+                    <radialGradient id="ballShadow" cx="70%" cy="78%" r="52%">
+                        <stop offset="0%" stop-color="rgba(58, 20, 7, 0.16)"></stop>
+                        <stop offset="100%" stop-color="rgba(58, 20, 7, 0)"></stop>
+                    </radialGradient>
+                    <pattern id="ballPebble" x="0" y="0" width="5" height="5" patternUnits="userSpaceOnUse">
+                        <circle cx="1.5" cy="1.5" r="0.5" fill="rgba(88,37,13,0.22)"></circle>
+                    </pattern>
+                </defs>
+                <circle cx="32" cy="32" r="30.5" fill="url(#ballBase)"></circle>
+                <circle cx="32" cy="32" r="30.5" fill="url(#ballPebble)" opacity="0.72"></circle>
+                <ellipse cx="24" cy="17" rx="10.5" ry="6.6" fill="rgba(255,232,188,0.45)"></ellipse>
+                <circle cx="32" cy="32" r="30.5" fill="url(#ballShadow)"></circle>
+                <g fill="none" stroke="#4a1a08" stroke-width="3.05" stroke-linecap="round" opacity="0.94">
+                    <path d="M32 2 C32 16 32 48 32 62"></path>
+                    <path d="M2 32 C16 32 48 32 62 32"></path>
+                    <path d="M10 10 C24 18 24 46 10 54"></path>
+                    <path d="M54 10 C40 18 40 46 54 54"></path>
+                </g>
+                <circle cx="32" cy="32" r="30.5" fill="none" stroke="rgba(255,241,206,0.34)" stroke-width="1.3"></circle>
+            </svg>
+        </div>
     </section>
 </section>
 
@@ -362,16 +421,15 @@
         top: 86px;
         width: 84px;
         height: 64px;
-        border: 2px solid rgba(237, 244, 255, 0.98);
-        border-top: none;
-        border-radius: 0 0 46% 46%;
-        clip-path: polygon(0 0, 100% 0, 84% 100%, 16% 100%);
-        background:
-            repeating-linear-gradient(90deg, transparent 0 8px, rgba(236, 246, 255, 0.92) 8px 10px, transparent 10px 18px),
-            repeating-linear-gradient(0deg, transparent 0 7px, rgba(236, 246, 255, 0.78) 7px 9px, transparent 9px 16px);
-        opacity: 0.95;
+        opacity: 0.98;
         filter: drop-shadow(0 1px 1px rgba(38, 56, 77, 0.45));
         z-index: 1;
+    }
+
+    .net-svg {
+        width: 100%;
+        height: 100%;
+        display: block;
     }
 
     .rim-hitbox {
@@ -394,47 +452,22 @@
         touch-action: none;
         user-select: none;
         will-change: transform;
-        background:
-            radial-gradient(circle at 27% 18%, rgba(255, 221, 156, 0.82) 0%, rgba(255, 221, 156, 0) 38%),
-            radial-gradient(circle at 70% 72%, rgba(90, 28, 4, 0.38) 0%, rgba(90, 28, 4, 0) 40%),
-            radial-gradient(circle at 42% 34%, #f79f41 0%, #ea7a24 48%, #cf5d11 77%, #9c3f08 100%);
+        background: transparent;
         box-shadow:
-            inset -11px -13px 16px rgba(93, 30, 5, 0.5),
-            inset 6px 5px 10px rgba(255, 214, 150, 0.2),
             0 12px 16px rgba(31, 19, 10, 0.3);
         z-index: 3;
     }
 
-    .basketball::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        border-radius: 50%;
-        background:
-            linear-gradient(92deg, transparent 45%, rgba(79, 27, 9, 0.9) 47%, rgba(79, 27, 9, 0.9) 53%, transparent 55%),
-            linear-gradient(0deg, transparent 45%, rgba(79, 27, 9, 0.9) 47%, rgba(79, 27, 9, 0.9) 53%, transparent 55%),
-            radial-gradient(circle, rgba(255, 255, 255, 0.18) 0.5px, transparent 0.5px);
-        background-size: auto, auto, 6px 6px;
-        mix-blend-mode: multiply;
-    }
-
-    .basketball::after {
-        content: "";
-        position: absolute;
-        inset: 7px;
-        border-radius: 50%;
-        border: 3px solid rgba(75, 25, 9, 0.88);
-        border-left-color: transparent;
-        border-right-color: transparent;
-        transform: rotate(24deg);
-        box-shadow: inset 0 0 0 1px rgba(255, 215, 160, 0.08);
+    .basketball-svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+        pointer-events: none;
     }
 
     .basketball.dragging {
         cursor: grabbing;
-        box-shadow:
-            inset -8px -10px 14px rgba(96, 36, 7, 0.36),
-            0 16px 22px rgba(31, 19, 10, 0.34);
+        box-shadow: 0 16px 22px rgba(31, 19, 10, 0.34);
     }
 
     @media (min-width: 768px) {

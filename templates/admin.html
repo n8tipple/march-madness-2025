@@ -70,7 +70,7 @@
                                     <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
                                 </div>
                             {% else %}
-                                <div class="d-flex align-items-center">
+                                <div class="d-flex align-items-center winner-option-row">
                                     <div class="form-check me-2">
                                         <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team1 }}"
                                             id="game{{ game.id }}_team1"
@@ -97,7 +97,7 @@
                                     <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
                                 </div>
                             {% else %}
-                                <div class="d-flex align-items-center">
+                                <div class="d-flex align-items-center winner-option-row">
                                     <div class="form-check me-2">
                                         <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team2 }}"
                                             id="game{{ game.id }}_team2"
@@ -173,6 +173,10 @@
             letter-spacing: 0.06em;
         }
 
+        .winner-table > :not(caption) > * > * {
+            padding: 0.52rem 0.44rem;
+        }
+
         .pick-cell {
             cursor: pointer;
             padding: 0.6rem;
@@ -189,8 +193,44 @@
             color: #173551;
         }
 
+        .winner-option-row {
+            width: 100%;
+            gap: 0.38rem;
+        }
+
+        .winner-option-row .form-check {
+            margin-bottom: 0;
+            flex: 0 0 auto;
+        }
+
+        .winner-option-row .form-check.me-2 {
+            margin-right: 0 !important;
+        }
+
+        .winner-option-row .form-check-input {
+            margin-top: 0;
+        }
+
         .winner-select {
-            min-width: 150px;
+            flex: 1 1 auto;
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            font-size: 0.96rem;
+        }
+
+        @media (min-width: 768px) {
+            .winner-table > :not(caption) > * > * {
+                padding: 0.68rem 0.72rem;
+            }
+
+            .winner-option-row .form-check.me-2 {
+                margin-right: 0.5rem !important;
+            }
+
+            .winner-select {
+                min-width: 150px;
+            }
         }
     </style>
 {% endif %}
