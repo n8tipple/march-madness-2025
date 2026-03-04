@@ -1,4 +1,5 @@
 import os
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
@@ -20,13 +21,33 @@ try:
 except FileNotFoundError:
     raise Exception("Error: secret_key.txt not found in project directory. Please create it with a secure key.")
 
+
+def normalize_database_url(raw_url):
+    if not raw_url:
+        return None
+    url = raw_url
+    if url.startswith('postgres://'):
+        url = url.replace('postgres://', 'postgresql://', 1)
+    if not url.startswith('postgresql://'):
+        return url
+
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    # Supabase requires TLS; enforce it unless explicitly set.
+    query.setdefault('sslmode', 'require')
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
 database_url = os.getenv('DATABASE_URL')
-if database_url and database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+database_url = normalize_database_url(database_url)
 if not database_url:
-    os.makedirs(app.instance_path, exist_ok=True)
+    if os.getenv('VERCEL') == '1':
+        local_base = '/tmp'
+    else:
+        local_base = app.instance_path
+    os.makedirs(local_base, exist_ok=True)
     local_db_name = f"mm{app.config['TOURNAMENT_YEAR']}.db"
-    database_url = f"sqlite:///{os.path.join(app.instance_path, local_db_name)}"
+    database_url = f"sqlite:///{os.path.join(local_base, local_db_name)}"
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
