@@ -165,12 +165,12 @@ class AuthAndHomeRouteTests(BaseTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/dashboard", response.headers["Location"])
 
-    def test_logout_redirects_to_login(self):
+    def test_logout_redirects_to_home(self):
         self.create_user("nate")
         self.login("nate")
         response = self.client.get("/logout")
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/login", response.headers["Location"])
+        self.assertIn("/", response.headers["Location"])
 
     def test_home_with_no_rounds_shows_empty_state(self):
         response = self.client.get("/")

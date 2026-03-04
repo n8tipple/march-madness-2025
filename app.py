@@ -385,7 +385,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('login'))
+    return redirect(url_for('home'))
 
 @app.route('/pick', methods=['GET', 'POST'])
 @login_required
@@ -433,7 +433,7 @@ def pick():
                                        user_points=user_total_points, error_game_id=error_game_id, wager=wager)
 
             db.session.commit()
-            flash('Picks submitted successfully! Points will update on next leaderboard view.', 'success')
+            flash('Picks submitted successfully! Points will update as games are played.', 'success')
             return redirect(url_for('home'))
         except Exception as e:
             db.session.rollback()
