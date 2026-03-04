@@ -9,11 +9,6 @@
         </div>
     </div>
 
-    <section class="court-playground" id="ballCourt" aria-label="Basketball playground">
-        <p class="court-label mb-0">Warmup mode: drag and fling the ball</p>
-        <div class="basketball" id="basketball" role="img" aria-label="Animated basketball"></div>
-    </section>
-
     {% if current_round %}
         <div class="status-pill mb-3">
             <span class="status-label"><i class="fas fa-fire me-1"></i>Current Round</span>
@@ -101,9 +96,38 @@
         color: #173551;
     }
 
+    .no-round {
+        text-align: center;
+    }
+
+    @media (min-width: 768px) {
+        .hero-banner {
+            padding: 1.2rem 1.2rem 1.1rem;
+        }
+
+        .hero-kicker {
+            font-size: 0.78rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block page_bottom %}
+<section class="court-wrap" aria-label="Basketball playground">
+    <section class="court-playground" id="ballCourt">
+        <p class="court-label mb-0">Warmup Mode: Drag And Fling The Ball</p>
+        <div class="basketball" id="basketball" role="img" aria-label="Animated basketball"></div>
+    </section>
+</section>
+
+<style>
+    .court-wrap {
+        margin-top: 0.95rem;
+    }
+
     .court-playground {
         position: relative;
-        height: 220px;
+        height: 230px;
         border: 1px solid #dbba95;
         border-radius: 1rem;
         overflow: hidden;
@@ -139,7 +163,7 @@
         left: 0.6rem;
         border-radius: 999px;
         padding: 0.25rem 0.6rem;
-        font-size: 0.76rem;
+        font-size: 0.74rem;
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -159,6 +183,7 @@
         cursor: grab;
         touch-action: none;
         user-select: none;
+        will-change: transform;
         background:
             radial-gradient(circle at 25% 22%, #ffc26a 0%, #f38d2e 36%, #d96513 72%, #ac470e 100%);
         box-shadow:
@@ -195,21 +220,13 @@
             0 16px 22px rgba(31, 19, 10, 0.34);
     }
 
-    .no-round {
-        text-align: center;
-    }
-
     @media (min-width: 768px) {
-        .hero-banner {
-            padding: 1.2rem 1.2rem 1.1rem;
-        }
-
-        .hero-kicker {
-            font-size: 0.78rem;
+        .court-wrap {
+            margin-top: 1.1rem;
         }
 
         .court-playground {
-            height: 250px;
+            height: 260px;
         }
 
         .court-label {
@@ -224,16 +241,22 @@
 
     if (court && ball) {
         const radius = 32;
-        const gravity = 0.62;
-        const damping = 0.996;
-        const bounce = 0.78;
-        const maxSpeed = 24;
+        const gravity = 0.58;
+        const floorBounce = 0.72;
+        const wallBounce = 0.82;
+        const groundFriction = 0.985;
+        const airDrag = 0.998;
+        const spinDrag = 0.985;
+        const maxSpeed = 25;
+        const radToDeg = 180 / Math.PI;
 
         let bounds = court.getBoundingClientRect();
-        let x = Math.min(bounds.width * 0.25, bounds.width - radius);
-        let y = radius + 2;
-        let vx = 2.1;
+        let x = Math.min(bounds.width * 0.26, bounds.width - radius);
+        let y = radius + 8;
+        let vx = 2.6;
         let vy = 0;
+        let angle = 0;
+        let angularVelocity = 2.2;
 
         let dragging = false;
         let activePointerId = null;
@@ -244,7 +267,7 @@
         }
 
         function setBallPosition() {
-            ball.style.transform = `translate(${x - radius}px, ${y - radius}px)`;
+            ball.style.transform = `translate(${x - radius}px, ${y - radius}px) rotate(${angle}deg)`;
         }
 
         function refreshBounds() {
@@ -262,9 +285,9 @@
             };
         }
 
-        function trackDragSample(now) {
-            dragTrail.push({ x, y, t: now });
-            if (dragTrail.length > 8) {
+        function addTrailSample(timestamp) {
+            dragTrail.push({ x, y, t: timestamp });
+            if (dragTrail.length > 10) {
                 dragTrail.shift();
             }
         }
@@ -281,8 +304,9 @@
             const last = dragTrail[dragTrail.length - 1];
             if (first && last && last.t > first.t) {
                 const dt = last.t - first.t;
-                vx = clamp(((last.x - first.x) / dt) * 16, -maxSpeed, maxSpeed);
-                vy = clamp(((last.y - first.y) / dt) * 16, -maxSpeed, maxSpeed);
+                vx = clamp(((last.x - first.x) / dt) * 14, -maxSpeed, maxSpeed);
+                vy = clamp(((last.y - first.y) / dt) * 14, -maxSpeed, maxSpeed);
+                angularVelocity = (vx / radius) * radToDeg * 0.8;
             }
 
             if (ball.hasPointerCapture(activePointerId)) {
@@ -304,7 +328,7 @@
             y = clamp(point.y, radius, bounds.height - radius);
             vx = 0;
             vy = 0;
-            trackDragSample(performance.now());
+            addTrailSample(performance.now());
             setBallPosition();
         });
 
@@ -312,10 +336,15 @@
             if (!dragging || evt.pointerId !== activePointerId) {
                 return;
             }
+
+            const prevX = x;
             const point = pointerToCourt(evt);
             x = clamp(point.x, radius, bounds.width - radius);
             y = clamp(point.y, radius, bounds.height - radius);
-            trackDragSample(performance.now());
+
+            const dx = x - prevX;
+            angle += (dx / radius) * radToDeg;
+            addTrailSample(performance.now());
             setBallPosition();
         });
 
@@ -324,33 +353,54 @@
 
         function animate() {
             if (!dragging) {
+                const floor = bounds.height - radius;
+                const right = bounds.width - radius;
+
                 vy += gravity;
-                vx *= damping;
-                vy *= damping;
                 x += vx;
                 y += vy;
 
-                if (x >= bounds.width - radius) {
-                    x = bounds.width - radius;
-                    vx = -Math.abs(vx) * bounce;
+                if (x >= right) {
+                    x = right;
+                    vx = -Math.abs(vx) * wallBounce;
+                    angularVelocity *= 0.82;
                 } else if (x <= radius) {
                     x = radius;
-                    vx = Math.abs(vx) * bounce;
+                    vx = Math.abs(vx) * wallBounce;
+                    angularVelocity *= 0.82;
                 }
 
-                if (y >= bounds.height - radius) {
-                    y = bounds.height - radius;
-                    vy = -Math.abs(vy) * bounce;
-                    if (Math.abs(vy) < 0.45) {
+                if (y >= floor) {
+                    y = floor;
+                    if (Math.abs(vy) > 0.55) {
+                        vy = -Math.abs(vy) * floorBounce;
+                    } else {
                         vy = 0;
                     }
-                } else if (y <= radius) {
-                    y = radius;
-                    vy = Math.abs(vy) * bounce;
+
+                    vx *= groundFriction;
+                    if (Math.abs(vx) < 0.03) {
+                        vx = 0;
+                    }
+
+                    const targetSpin = (vx / radius) * radToDeg;
+                    angularVelocity += (targetSpin - angularVelocity) * 0.2;
+                } else {
+                    vx *= airDrag;
+                    vy *= 0.999;
+                    angularVelocity *= 0.996;
                 }
 
+                if (y <= radius) {
+                    y = radius;
+                    vy = Math.abs(vy) * 0.52;
+                }
+
+                angularVelocity *= spinDrag;
+                angle += angularVelocity;
                 setBallPosition();
             }
+
             requestAnimationFrame(animate);
         }
 
