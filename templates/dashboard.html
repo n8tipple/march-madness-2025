@@ -35,7 +35,7 @@
             </div>
         </div>
     </div>
-    <div class="action-row justify-content-center mt-2">
+    <div class="action-row dashboard-actions mt-2">
         <a href="{{ url_for('pick') }}" class="btn btn-primary">Make Picks</a>
         <a href="{{ url_for('view_picks') }}" class="btn btn-outline-primary">View Picks</a>
         <a href="{{ url_for('leaderboard') }}" class="btn btn-outline-primary">Leaderboard</a>
@@ -154,6 +154,15 @@
         height: min(68vw, 260px);
         object-fit: cover;
         cursor: pointer;
+    }
+
+    .dashboard-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .dashboard-actions .btn {
+        width: 100%;
     }
 
     @media (min-width: 768px) {

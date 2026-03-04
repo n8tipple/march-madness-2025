@@ -391,6 +391,20 @@ class ViewAndLeaderboardRouteTests(BaseTestCase):
         self.assertIn(b"Leaderboard", response.data)
         self.assertIn(user.username.encode("utf-8"), response.data)
 
+    def test_leaderboard_modal_shows_round_pick_breakdown(self):
+        user = self.create_user("nate")
+        closed_round = self.create_round("Sweet 16", point_value=4, closed=True, closed_for_selection=True)
+        game = self.create_game(closed_round, "A", "B", winner="A")
+        self.create_pick(user, game, "A")
+        calculate_points(closed_round)
+
+        response = self.client.get("/leaderboard")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Sweet 16", response.data)
+        self.assertIn(b"A vs B", response.data)
+        self.assertIn(b"Round Total", response.data)
+        self.assertIn(b"Won", response.data)
+
     def test_view_picks_requires_login(self):
         response = self.client.get("/view_picks")
         self.assertEqual(response.status_code, 302)

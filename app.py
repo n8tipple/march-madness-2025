@@ -276,6 +276,66 @@ def get_users_with_points():
         users.append(user)
     return sorted(users, key=lambda u: u.points, reverse=True)
 
+
+def build_leaderboard_pick_data(users):
+    closed_rounds = Round.query.filter_by(closed=True).order_by(Round.id.desc()).all()
+    leaderboard_picks = {user.id: {} for user in users}
+    if not closed_rounds or not users:
+        return closed_rounds, leaderboard_picks
+
+    closed_round_ids = [round_obj.id for round_obj in closed_rounds]
+    games = Game.query.filter(Game.round_id.in_(closed_round_ids)).order_by(Game.round_id.desc(), Game.id).all()
+    games_by_round = {round_obj.id: [] for round_obj in closed_rounds}
+    for game in games:
+        games_by_round.setdefault(game.round_id, []).append(game)
+
+    game_ids = [game.id for game in games]
+    user_ids = [user.id for user in users]
+    picks = []
+    if game_ids and user_ids:
+        picks = Pick.query.filter(Pick.game_id.in_(game_ids), Pick.user_id.in_(user_ids)).all()
+    picks_by_user_game = {(pick.user_id, pick.game_id): pick for pick in picks}
+
+    for user in users:
+        for round_obj in closed_rounds:
+            rows = []
+            round_total = 0
+            for game in games_by_round.get(round_obj.id, []):
+                pick = picks_by_user_game.get((user.id, game.id))
+                picked_team = pick.picked_team if pick else None
+                winner = game.winner
+                points = pick.points if pick else 0
+
+                if winner and picked_team == winner:
+                    result_label = 'Won'
+                    result_key = 'win'
+                elif winner and picked_team:
+                    result_label = 'Lost'
+                    result_key = 'loss'
+                elif winner and not picked_team:
+                    result_label = 'No Pick'
+                    result_key = 'loss'
+                else:
+                    result_label = 'Pending'
+                    result_key = 'pending'
+
+                rows.append({
+                    'game': f'{game.team1} vs {game.team2}',
+                    'picked_team': picked_team or 'No pick',
+                    'winner': winner or 'Pending',
+                    'result_label': result_label,
+                    'result_key': result_key,
+                    'points': points,
+                })
+                round_total += points
+
+            leaderboard_picks[user.id][round_obj.id] = {
+                'rows': rows,
+                'round_total': round_total,
+            }
+
+    return closed_rounds, leaderboard_picks
+
 # Context Processor for Navbar Points
 @app.context_processor
 def inject_user_points():
@@ -293,7 +353,14 @@ def home():
     all_rounds_complete = pending_game is None and Round.query.first() is not None
     if all_rounds_complete:
         users = get_users_with_points()
-        return render_template('leaderboard.html', users=users, final=True)
+        closed_rounds, leaderboard_picks = build_leaderboard_pick_data(users)
+        return render_template(
+            'leaderboard.html',
+            users=users,
+            final=True,
+            closed_rounds=closed_rounds,
+            leaderboard_picks=leaderboard_picks,
+        )
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     current_round = Round.query.filter_by(closed=False).order_by(Round.id).first()
@@ -618,7 +685,13 @@ def admin_submit_picks():
 @app.route('/leaderboard')
 def leaderboard():
     users = get_users_with_points()
-    return render_template('leaderboard.html', users=users)
+    closed_rounds, leaderboard_picks = build_leaderboard_pick_data(users)
+    return render_template(
+        'leaderboard.html',
+        users=users,
+        closed_rounds=closed_rounds,
+        leaderboard_picks=leaderboard_picks,
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)

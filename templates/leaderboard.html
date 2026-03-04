@@ -7,6 +7,16 @@
 
 {% set max_points = users|map(attribute='points')|max if users else 1 %}
 {% if max_points == 0 %}{% set max_points = 1 %}{% endif %}
+{% set closed_rounds = closed_rounds|default([]) %}
+{% set leaderboard_picks = leaderboard_picks|default({}) %}
+{% set round_name_map = {
+    'First Round (Round of 64)': 'First Round',
+    'Second Round (Round of 32)': 'Second Round',
+    'Sweet 16': 'Sweet 16',
+    'Elite Eight': 'Elite 8',
+    'Final Four': 'Final 4',
+    'Championship': 'Championship'
+} %}
 
 <div class="leaderboard">
     {% if not users %}
@@ -32,14 +42,82 @@
     </div>
 
     <div class="modal fade" id="picModal{{ user.id }}" tabindex="-1" aria-labelledby="picModalLabel{{ user.id }}" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="picModalLabel{{ user.id }}">{{ user.fun_name }} ({{ user.username }})</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <img src="{{ url_for('static', filename=user.picture) }}" class="img-fluid" alt="{{ user.username }}'s picture">
+                    <div class="leader-modal-layout">
+                        <img src="{{ url_for('static', filename=user.picture) }}" class="img-fluid leader-modal-photo" alt="{{ user.username }}'s picture">
+                        <div class="leader-modal-picks">
+                            {% if closed_rounds %}
+                                <div class="surface-soft leader-modal-controls mb-1">
+                                    <div class="btn-group flex-wrap w-100 leader-round-buttons" role="group" aria-label="Select round">
+                                        {% for round in closed_rounds %}
+                                        <button type="button"
+                                                class="btn btn-outline-primary {{ 'active' if loop.first }}"
+                                                data-user-id="{{ user.id }}"
+                                                data-round-id="{{ round.id }}">
+                                            {{ round_name_map.get(round.name, round.name) }}
+                                        </button>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                {% for round in closed_rounds %}
+                                {% set round_data = leaderboard_picks.get(user.id, {}).get(round.id, {'rows': [], 'round_total': 0}) %}
+                                <section class="leader-round-panel {{ '' if loop.first else 'd-none' }}"
+                                         data-user-id="{{ user.id }}"
+                                         data-round-id="{{ round.id }}"
+                                         id="leaderRound{{ user.id }}_{{ round.id }}">
+                                    <h6 class="leader-round-title">{{ round.name }}</h6>
+                                    <div class="table-responsive leader-modal-table-wrap">
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 34%;">Game</th>
+                                                    <th style="width: 22%;">Pick</th>
+                                                    <th style="width: 22%;">Winner</th>
+                                                    <th style="width: 12%;" class="text-center">Result</th>
+                                                    <th style="width: 10%;" class="text-center">Pts</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% if round_data.rows %}
+                                                    {% for row in round_data.rows %}
+                                                    <tr class="{{ 'table-success' if row.result_key == 'win' else 'table-danger' if row.result_key == 'loss' else '' }}">
+                                                        <td>{{ row.game }}</td>
+                                                        <td>{{ row.picked_team }}</td>
+                                                        <td>{{ row.winner }}</td>
+                                                        <td class="text-center">{{ row.result_label }}</td>
+                                                        <td class="text-center">{{ row.points }}</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <tr>
+                                                        <td colspan="5" class="text-muted">No games found for this round.</td>
+                                                    </tr>
+                                                {% endif %}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr class="table-dark">
+                                                    <th colspan="4" class="text-end">Round Total</th>
+                                                    <th class="text-center">{{ round_data.round_total }}</th>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </section>
+                                {% endfor %}
+                            {% else %}
+                                <div class="surface-soft mb-0">
+                                    <p class="mb-0 text-muted">No closed rounds available yet.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -131,6 +209,72 @@
         border-radius: 999px;
     }
 
+    .leader-modal-layout {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .leader-modal-photo {
+        width: min(100%, 380px);
+        border-radius: 0.9rem;
+        border: 1px solid #e3d2ba;
+        background: #fffdfa;
+        box-shadow: 0 8px 20px rgba(20, 31, 47, 0.12);
+    }
+
+    .leader-modal-picks {
+        display: grid;
+        gap: 0.55rem;
+        min-width: 0;
+    }
+
+    .leader-modal-controls {
+        padding: 0.6rem;
+    }
+
+    .leader-round-buttons .btn {
+        flex: 1 1 110px;
+        border-radius: 0.7rem !important;
+        font-size: 0.78rem;
+        font-weight: 700;
+        line-height: 1.25;
+        padding: 0.44rem 0.4rem;
+    }
+
+    .leader-round-title {
+        margin: 0;
+        font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+        font-size: 1.18rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: #173551;
+    }
+
+    .leader-modal-table-wrap {
+        border-color: #e4d3b9;
+    }
+
+    .leader-modal-table-wrap table {
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .leader-modal-table-wrap th,
+    .leader-modal-table-wrap td {
+        vertical-align: middle;
+        word-wrap: break-word;
+    }
+
+    .leader-modal-table-wrap th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .leader-modal-table-wrap td {
+        font-size: 0.82rem;
+    }
+
     @media (min-width: 768px) {
         .leaderboard-item {
             padding: 0.95rem;
@@ -159,6 +303,55 @@
             grid-column: auto;
             justify-self: end;
         }
+
+        .leader-round-buttons .btn {
+            flex-basis: 130px;
+            font-size: 0.88rem;
+            padding: 0.5rem 0.6rem;
+        }
+
+        .leader-round-title {
+            font-size: 1.32rem;
+        }
+
+        .leader-modal-table-wrap th {
+            font-size: 0.8rem;
+        }
+
+        .leader-modal-table-wrap td {
+            font-size: 0.88rem;
+        }
+    }
+
+    @media (min-width: 992px) {
+        .leader-modal-layout {
+            grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+            align-items: start;
+        }
     }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.leader-round-buttons button[data-user-id]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const userId = button.getAttribute('data-user-id');
+                const roundId = button.getAttribute('data-round-id');
+
+                document.querySelectorAll('.leader-round-buttons button[data-user-id="' + userId + '"]').forEach(function(btn) {
+                    btn.classList.remove('active');
+                });
+                button.classList.add('active');
+
+                document.querySelectorAll('.leader-round-panel[data-user-id="' + userId + '"]').forEach(function(panel) {
+                    panel.classList.add('d-none');
+                });
+                const target = document.getElementById('leaderRound' + userId + '_' + roundId);
+                if (target) {
+                    target.classList.remove('d-none');
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}
