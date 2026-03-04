@@ -118,10 +118,24 @@
         <p class="court-label mb-0">Warmup Mode: Drag And Fling The Ball</p>
         <div class="court-scoreboard" aria-live="polite">
             <span class="score-label">Buckets</span>
-            <span class="score-value" id="courtScoreValue">0</span>
+            <div class="score-display" id="scoreDisplay" aria-label="Scoreboard">
+                <div class="digit" data-score-digit>
+                    <span class="seg a"></span><span class="seg b"></span><span class="seg c"></span>
+                    <span class="seg d"></span><span class="seg e"></span><span class="seg f"></span><span class="seg g"></span>
+                </div>
+                <div class="digit" data-score-digit>
+                    <span class="seg a"></span><span class="seg b"></span><span class="seg c"></span>
+                    <span class="seg d"></span><span class="seg e"></span><span class="seg f"></span><span class="seg g"></span>
+                </div>
+                <div class="digit" data-score-digit>
+                    <span class="seg a"></span><span class="seg b"></span><span class="seg c"></span>
+                    <span class="seg d"></span><span class="seg e"></span><span class="seg f"></span><span class="seg g"></span>
+                </div>
+            </div>
         </div>
         <div class="hoop" aria-hidden="true">
             <div class="backboard" id="courtBackboard"></div>
+            <div class="rim-support"></div>
             <div class="rim" id="courtRim"></div>
             <div class="net"></div>
             <div class="rim-hitbox" id="rimHitbox"></div>
@@ -154,18 +168,6 @@
         box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32), 0 10px 24px rgba(20, 31, 47, 0.12);
     }
 
-    .court-playground::before {
-        content: "";
-        position: absolute;
-        left: 50%;
-        top: -12px;
-        width: 140px;
-        height: 140px;
-        border: 2px solid rgba(158, 99, 43, 0.45);
-        border-radius: 999px;
-        transform: translateX(-50%);
-    }
-
     .court-scoreboard {
         position: absolute;
         z-index: 4;
@@ -174,13 +176,13 @@
         display: flex;
         align-items: center;
         gap: 0.45rem;
-        border-radius: 999px;
-        padding: 0.22rem 0.26rem 0.22rem 0.52rem;
-        background: rgba(21, 49, 74, 0.94);
+        border-radius: 0.45rem;
+        padding: 0.35rem 0.42rem 0.36rem 0.52rem;
+        background: linear-gradient(180deg, #193958 0%, #0f273f 100%);
         color: #f4f8ff;
-        border: 1px solid rgba(11, 28, 43, 0.55);
+        border: 2px solid #0b1f33;
         pointer-events: none;
-        box-shadow: 0 8px 16px rgba(20, 31, 47, 0.2);
+        box-shadow: inset 0 0 0 1px rgba(166, 206, 238, 0.18), 0 8px 16px rgba(20, 31, 47, 0.2);
     }
 
     .score-label {
@@ -188,31 +190,78 @@
         font-weight: 700;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        opacity: 0.85;
+        opacity: 0.95;
     }
 
-    .score-value {
-        min-width: 2.25rem;
-        text-align: center;
-        border-radius: 999px;
-        padding: 0.14rem 0.48rem;
-        background: #ef6b2e;
-        color: #fff;
-        font-size: 1rem;
-        font-weight: 800;
-        line-height: 1;
-        transition: transform 0.18s ease, background-color 0.18s ease;
+    .score-display {
+        display: flex;
+        gap: 0.26rem;
+        padding: 0.28rem 0.3rem;
+        border-radius: 0.26rem;
+        background: #090d13;
+        border: 1px solid #1f2a38;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
     }
 
-    .court-playground.score-pop .score-value {
-        transform: scale(1.15);
-        background: #f08c2f;
+    .digit {
+        position: relative;
+        width: 19px;
+        height: 33px;
+        border-radius: 0.12rem;
+        background: #0d1219;
+    }
+
+    .seg {
+        position: absolute;
+        display: block;
+        border-radius: 2px;
+        background: #2a1215;
+        box-shadow: 0 0 1px rgba(0, 0, 0, 0.45);
+    }
+
+    .seg.on {
+        background: #ff3b2f;
+        box-shadow: 0 0 6px rgba(255, 70, 44, 0.8);
+    }
+
+    .digit .a,
+    .digit .d,
+    .digit .g {
+        left: 4px;
+        width: 11px;
+        height: 3px;
+    }
+
+    .digit .a { top: 2px; }
+    .digit .g { top: 15px; }
+    .digit .d { bottom: 2px; }
+
+    .digit .b,
+    .digit .c,
+    .digit .e,
+    .digit .f {
+        width: 3px;
+        height: 11px;
+    }
+
+    .digit .b { top: 4px; right: 1px; }
+    .digit .c { bottom: 4px; right: 1px; }
+    .digit .f { top: 4px; left: 1px; }
+    .digit .e { bottom: 4px; left: 1px; }
+
+    .court-playground.score-pop .score-display {
+        transform: scale(1.08);
+    }
+
+    .court-playground.score-pop .seg.on {
+        background: #ff7e5e;
+        box-shadow: 0 0 9px rgba(255, 126, 94, 0.95);
     }
 
     .court-label {
         position: absolute;
         z-index: 2;
-        top: 0.55rem;
+        bottom: 0.55rem;
         left: 0.6rem;
         border-radius: 999px;
         padding: 0.25rem 0.6rem;
@@ -228,56 +277,119 @@
     .hoop {
         position: absolute;
         z-index: 2;
-        right: 1.1rem;
-        top: 18%;
-        width: 110px;
-        height: 130px;
+        right: 0.8rem;
+        top: 16%;
+        width: 176px;
+        height: 196px;
         pointer-events: none;
+    }
+
+    .hoop::before {
+        content: "";
+        position: absolute;
+        right: 14px;
+        top: 58px;
+        width: 126px;
+        height: 18px;
+        border-radius: 999px;
+        background: radial-gradient(ellipse at center, rgba(38, 20, 7, 0.35) 0%, rgba(38, 20, 7, 0) 72%);
+        filter: blur(1px);
+        z-index: 0;
     }
 
     .backboard {
         position: absolute;
         right: 0;
         top: 0;
-        width: 13px;
-        height: 94px;
-        border-radius: 0.2rem;
-        background: linear-gradient(180deg, #eaf3ff 0%, #d6e6fb 100%);
-        border: 2px solid #9db7d6;
-        box-shadow: 0 2px 7px rgba(20, 31, 47, 0.2);
+        width: 26px;
+        height: 142px;
+        border-radius: 0.24rem;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(236, 244, 253, 0.92) 68%, rgba(211, 224, 240, 0.92) 100%),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 40%);
+        border: 3px solid #17324a;
+        box-shadow:
+            inset -2px 0 4px rgba(27, 45, 65, 0.24),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+            0 4px 10px rgba(20, 31, 47, 0.26);
+    }
+
+    .backboard::before {
+        content: "";
+        position: absolute;
+        left: 5px;
+        top: 48px;
+        width: 14px;
+        height: 26px;
+        border: 2px solid rgba(23, 50, 74, 0.65);
+        border-radius: 0.12rem;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.36);
+    }
+
+    .rim-support {
+        position: absolute;
+        right: 18px;
+        top: 74px;
+        width: 30px;
+        height: 12px;
+        border-radius: 0.3rem;
+        background: linear-gradient(180deg, #d96c25 0%, #8e3300 100%);
+        border: 2px solid #672103;
+        box-shadow: inset 0 1px 1px rgba(255, 191, 127, 0.4);
+        z-index: 1;
     }
 
     .rim {
         position: absolute;
-        right: 10px;
-        top: 46px;
-        width: 70px;
-        height: 12px;
+        right: 17px;
+        top: 70px;
+        width: 114px;
+        height: 18px;
         border-radius: 999px;
-        background: linear-gradient(180deg, #ff7f2f 0%, #d55012 100%);
-        border: 2px solid #aa3d0f;
-        box-shadow: 0 2px 8px rgba(94, 37, 10, 0.3);
+        background: linear-gradient(180deg, #ffb156 0%, #ff7f1f 46%, #cb4c0b 100%);
+        border: 3px solid #6a2000;
+        box-shadow:
+            inset 0 1px 1px rgba(255, 222, 171, 0.56),
+            inset 0 -2px 3px rgba(125, 42, 7, 0.42),
+            0 3px 10px rgba(76, 21, 2, 0.4);
+        z-index: 2;
+    }
+
+    .rim::before {
+        content: "";
+        position: absolute;
+        left: 6px;
+        right: 6px;
+        top: 3px;
+        bottom: 4px;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 214, 165, 0.28);
     }
 
     .net {
         position: absolute;
-        right: 16px;
-        top: 58px;
-        width: 54px;
-        height: 38px;
-        border: 2px solid rgba(208, 227, 247, 0.92);
+        right: 28px;
+        top: 86px;
+        width: 84px;
+        height: 64px;
+        border: 2px solid rgba(237, 244, 255, 0.98);
         border-top: none;
-        border-radius: 0 0 40% 40%;
+        border-radius: 0 0 46% 46%;
         clip-path: polygon(0 0, 100% 0, 84% 100%, 16% 100%);
-        opacity: 0.88;
+        background:
+            repeating-linear-gradient(90deg, transparent 0 8px, rgba(236, 246, 255, 0.92) 8px 10px, transparent 10px 18px),
+            repeating-linear-gradient(0deg, transparent 0 7px, rgba(236, 246, 255, 0.78) 7px 9px, transparent 9px 16px);
+        opacity: 0.95;
+        filter: drop-shadow(0 1px 1px rgba(38, 56, 77, 0.45));
+        z-index: 1;
     }
 
     .rim-hitbox {
         position: absolute;
-        right: 30px;
-        top: 50px;
-        width: 30px;
-        height: 34px;
+        right: 43px;
+        top: 74px;
+        width: 74px;
+        height: 64px;
     }
 
     .basketball {
@@ -293,9 +405,12 @@
         user-select: none;
         will-change: transform;
         background:
-            radial-gradient(circle at 25% 22%, #ffc26a 0%, #f38d2e 36%, #d96513 72%, #ac470e 100%);
+            radial-gradient(circle at 27% 18%, rgba(255, 221, 156, 0.82) 0%, rgba(255, 221, 156, 0) 38%),
+            radial-gradient(circle at 70% 72%, rgba(90, 28, 4, 0.38) 0%, rgba(90, 28, 4, 0) 40%),
+            radial-gradient(circle at 42% 34%, #f79f41 0%, #ea7a24 48%, #cf5d11 77%, #9c3f08 100%);
         box-shadow:
-            inset -8px -10px 14px rgba(96, 36, 7, 0.36),
+            inset -11px -13px 16px rgba(93, 30, 5, 0.5),
+            inset 6px 5px 10px rgba(255, 214, 150, 0.2),
             0 12px 16px rgba(31, 19, 10, 0.3);
         z-index: 3;
     }
@@ -306,19 +421,23 @@
         inset: 0;
         border-radius: 50%;
         background:
-            linear-gradient(90deg, transparent 46%, rgba(77, 28, 9, 0.82) 48%, rgba(77, 28, 9, 0.82) 52%, transparent 54%),
-            linear-gradient(0deg, transparent 46%, rgba(77, 28, 9, 0.82) 48%, rgba(77, 28, 9, 0.82) 52%, transparent 54%);
+            linear-gradient(92deg, transparent 45%, rgba(79, 27, 9, 0.9) 47%, rgba(79, 27, 9, 0.9) 53%, transparent 55%),
+            linear-gradient(0deg, transparent 45%, rgba(79, 27, 9, 0.9) 47%, rgba(79, 27, 9, 0.9) 53%, transparent 55%),
+            radial-gradient(circle, rgba(255, 255, 255, 0.18) 0.5px, transparent 0.5px);
+        background-size: auto, auto, 6px 6px;
+        mix-blend-mode: multiply;
     }
 
     .basketball::after {
         content: "";
         position: absolute;
-        inset: 6px;
+        inset: 7px;
         border-radius: 50%;
-        border: 3px solid rgba(77, 28, 9, 0.82);
+        border: 3px solid rgba(75, 25, 9, 0.88);
         border-left-color: transparent;
         border-right-color: transparent;
-        transform: rotate(26deg);
+        transform: rotate(24deg);
+        box-shadow: inset 0 0 0 1px rgba(255, 215, 160, 0.08);
     }
 
     .basketball.dragging {
@@ -342,17 +461,13 @@
         }
 
         .score-label {
-            font-size: 0.74rem;
-        }
-
-        .score-value {
-            font-size: 1.06rem;
+            font-size: 0.72rem;
         }
 
         .hoop {
             right: 1.3rem;
-            width: 124px;
-            top: 17%;
+            width: 196px;
+            top: 13%;
         }
     }
 </style>
@@ -363,9 +478,21 @@
     const rimHitbox = document.getElementById('rimHitbox');
     const backboard = document.getElementById('courtBackboard');
     const rim = document.getElementById('courtRim');
-    const scoreValueEl = document.getElementById('courtScoreValue');
+    const scoreDigits = Array.from(document.querySelectorAll('[data-score-digit]'));
 
     if (court && ball) {
+        const DIGIT_SEGMENTS = {
+            "0": ["a", "b", "c", "d", "e", "f"],
+            "1": ["b", "c"],
+            "2": ["a", "b", "d", "e", "g"],
+            "3": ["a", "b", "c", "d", "g"],
+            "4": ["b", "c", "f", "g"],
+            "5": ["a", "c", "d", "f", "g"],
+            "6": ["a", "c", "d", "e", "f", "g"],
+            "7": ["a", "b", "c"],
+            "8": ["a", "b", "c", "d", "e", "f", "g"],
+            "9": ["a", "b", "c", "d", "f", "g"]
+        };
         const radius = 32;
         const gravity = 0.58;
         const floorBounce = 0.72;
@@ -425,8 +552,8 @@
                 const rect = rim.getBoundingClientRect();
                 const centerY = rect.top - courtRect.top + rect.height / 2;
                 rimCaps = [
-                    { x: rect.left - courtRect.left + 5, y: centerY, r: 5 },
-                    { x: rect.right - courtRect.left - 5, y: centerY, r: 5 }
+                    { x: rect.left - courtRect.left + 11, y: centerY, r: 8 },
+                    { x: rect.right - courtRect.left - 11, y: centerY, r: 8 }
                 ];
             }
         }
@@ -503,13 +630,35 @@
 
         function addBasket() {
             score += 2;
-            if (scoreValueEl) {
-                scoreValueEl.textContent = String(score);
-            }
+            renderScore();
             court.classList.add('score-pop');
             window.setTimeout(function() {
                 court.classList.remove('score-pop');
             }, 170);
+        }
+
+        function renderDigit(digitEl, value) {
+            const active = DIGIT_SEGMENTS[value] || DIGIT_SEGMENTS["0"];
+            digitEl.querySelectorAll('.seg').forEach(function(segEl) {
+                const segmentName = Array.from(segEl.classList).find(function(cls) {
+                    return cls.length === 1 && cls >= 'a' && cls <= 'g';
+                });
+                if (segmentName && active.includes(segmentName)) {
+                    segEl.classList.add('on');
+                } else {
+                    segEl.classList.remove('on');
+                }
+            });
+        }
+
+        function renderScore() {
+            if (!scoreDigits.length) {
+                return;
+            }
+            const formatted = String(score).padStart(scoreDigits.length, '0').slice(-scoreDigits.length);
+            scoreDigits.forEach(function(digitEl, index) {
+                renderDigit(digitEl, formatted[index]);
+            });
         }
 
         ball.addEventListener('pointerdown', function(evt) {
@@ -635,6 +784,7 @@
 
         window.addEventListener('resize', refreshBounds);
         updateCourtFeatures();
+        renderScore();
         setBallPosition();
         requestAnimationFrame(animate);
     }
