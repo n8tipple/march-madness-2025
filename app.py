@@ -18,12 +18,22 @@ load_dotenv()
 
 app = Flask(__name__)
 
+
+def env_value(key, default=None):
+    value = os.getenv(key, default)
+    if isinstance(value, str):
+        prefix = f"{key}="
+        if value.startswith(prefix):
+            return value[len(prefix):]
+    return value
+
+
 try:
-    app.config['TOURNAMENT_YEAR'] = int(os.getenv('TOURNAMENT_YEAR', '2026'))
+    app.config['TOURNAMENT_YEAR'] = int(env_value('TOURNAMENT_YEAR', '2026'))
 except ValueError:
     app.config['TOURNAMENT_YEAR'] = 2026
 
-secret_key = os.getenv('SECRET_KEY')
+secret_key = env_value('SECRET_KEY')
 if not secret_key:
     secret_key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'secret_key.txt')
     try:
@@ -88,7 +98,7 @@ def is_supported_sqlalchemy_url(url):
         return False, exc
 
 
-database_url = os.getenv('DATABASE_URL')
+database_url = env_value('DATABASE_URL')
 database_url = normalize_database_url(database_url)
 if not database_url:
     database_url = build_local_sqlite_url()
@@ -106,7 +116,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Set up logging
-log_level_name = os.getenv('LOG_LEVEL', 'INFO').upper()
+log_level_name = env_value('LOG_LEVEL', 'INFO').upper()
 log_level = getattr(logging, log_level_name, logging.INFO)
 logging.basicConfig(
     level=log_level,
