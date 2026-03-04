@@ -5,3 +5,4 @@ Flask-Bcrypt
 psycopg2-binary
 Flask-Caching
 certifi
+python-dotenv

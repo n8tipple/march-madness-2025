@@ -3,3 +3,7 @@ __pycache__/
 .DS_Store
 importantcode.txt
 venv/
+
+.env
+.env.*
+!.env.example
