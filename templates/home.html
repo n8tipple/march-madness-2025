@@ -117,7 +117,6 @@
     <section class="court-playground" id="ballCourt">
         <p class="court-label mb-0">Warmup Mode: Drag And Fling The Ball</p>
         <div class="court-scoreboard" aria-live="polite">
-            <span class="score-label">Buckets</span>
             <div class="score-display" id="scoreDisplay" aria-label="Scoreboard">
                 <div class="digit" data-score-digit>
                     <span class="seg a"></span><span class="seg b"></span><span class="seg c"></span>
@@ -172,25 +171,16 @@
         position: absolute;
         z-index: 4;
         top: 0.58rem;
-        right: 0.62rem;
+        left: 0.62rem;
         display: flex;
         align-items: center;
-        gap: 0.45rem;
         border-radius: 0.45rem;
-        padding: 0.35rem 0.42rem 0.36rem 0.52rem;
+        padding: 0.35rem 0.42rem 0.36rem;
         background: linear-gradient(180deg, #193958 0%, #0f273f 100%);
         color: #f4f8ff;
         border: 2px solid #0b1f33;
         pointer-events: none;
         box-shadow: inset 0 0 0 1px rgba(166, 206, 238, 0.18), 0 8px 16px rgba(20, 31, 47, 0.2);
-    }
-
-    .score-label {
-        font-size: 0.71rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        opacity: 0.95;
     }
 
     .score-display {
@@ -458,10 +448,6 @@
 
         .court-label {
             font-size: 0.78rem;
-        }
-
-        .score-label {
-            font-size: 0.72rem;
         }
 
         .hoop {
