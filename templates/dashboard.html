@@ -1,39 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="text-center">
-    <div class="page-header">
+<div class="dashboard">
+    <div class="page-header text-center text-md-start">
         <h2 class="page-title">Dashboard</h2>
         <p class="page-subtitle">Quick look at current standings and shortcuts.</p>
     </div>
     <div class="row g-3">
         <div class="col-12 col-lg-6">
-            <div class="dash-card h-100">
-                <h2 class="text-success mb-3">Current Winner</h2>
+            <div class="dash-card winner-card h-100">
+                <p class="dash-kicker">Current Winner</p>
                 {% if winner %}
                     <img src="{{ url_for('static', filename=winner.picture) }}" class="img-thumbnail profile-photo mb-2"
                          data-bs-toggle="modal" data-bs-target="#picModalWinner" alt="{{ winner.username }} picture">
-                    <h4 class="mb-1">{{ winner.fun_name }} ({{ winner.username }})</h4>
-                    <p class="mb-0">{{ winner.points }} points</p>
+                    <h4 class="mb-1 player-name">{{ winner.fun_name }}</h4>
+                    <p class="mb-1 text-muted">@{{ winner.username }}</p>
+                    <p class="score-line"><strong>{{ winner.points }}</strong> points</p>
                 {% else %}
-                    <p class="mb-0">No winner yet.</p>
+                    <p class="mb-0 empty-state">No winner yet.</p>
                 {% endif %}
             </div>
         </div>
         <div class="col-12 col-lg-6">
-            <div class="dash-card h-100">
-                <h2 class="text-danger mb-3">Current Loser</h2>
+            <div class="dash-card loser-card h-100">
+                <p class="dash-kicker">Current Loser</p>
                 {% if loser %}
                     <img src="{{ url_for('static', filename=loser.picture) }}" class="img-thumbnail profile-photo mb-2"
                          data-bs-toggle="modal" data-bs-target="#picModalLoser" alt="{{ loser.username }} picture">
-                    <h4 class="mb-1">{{ loser.fun_name }} ({{ loser.username }})</h4>
-                    <p class="mb-0">{{ loser.points }} points</p>
+                    <h4 class="mb-1 player-name">{{ loser.fun_name }}</h4>
+                    <p class="mb-1 text-muted">@{{ loser.username }}</p>
+                    <p class="score-line"><strong>{{ loser.points }}</strong> points</p>
                 {% else %}
-                    <p class="mb-0">No loser yet.</p>
+                    <p class="mb-0 empty-state">No loser yet.</p>
                 {% endif %}
             </div>
         </div>
     </div>
-    <div class="action-row justify-content-center">
+    <div class="action-row justify-content-center mt-2">
         <a href="{{ url_for('pick') }}" class="btn btn-primary">Make Picks</a>
         <a href="{{ url_for('view_picks') }}" class="btn btn-outline-primary">View Picks</a>
         <a href="{{ url_for('leaderboard') }}" class="btn btn-outline-primary">Leaderboard</a>
@@ -75,17 +77,89 @@
 {% endif %}
 
 <style>
+    .dashboard {
+        display: grid;
+        gap: 0.8rem;
+    }
+
     .dash-card {
-        border: 1px solid #dce4ee;
-        border-radius: 0.8rem;
+        border-radius: 1rem;
+        border: 1px solid #dfceb3;
         padding: 1rem;
-        background: #f8fbff;
+        text-align: center;
+        background: #fffdfa;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 22px rgba(20, 31, 47, 0.09);
+    }
+
+    .dash-card::after {
+        content: "";
+        position: absolute;
+        width: 132px;
+        height: 132px;
+        border-radius: 999px;
+        right: -52px;
+        top: -52px;
+        opacity: 0.6;
+    }
+
+    .winner-card::after {
+        background: rgba(31, 157, 106, 0.24);
+    }
+
+    .loser-card::after {
+        background: rgba(198, 64, 75, 0.2);
+    }
+
+    .dash-kicker {
+        display: inline-block;
+        margin: 0 0 0.75rem;
+        padding: 0.28rem 0.62rem;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        background: #173551;
+        color: #f0f7ff;
+        position: relative;
+        z-index: 1;
+    }
+
+    .player-name {
+        font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+        font-size: 1.75rem;
+        line-height: 1;
+        margin-top: 0.25rem;
+    }
+
+    .score-line {
+        margin-bottom: 0;
+        color: #1e3652;
+        font-size: 1rem;
+    }
+
+    .score-line strong {
+        color: #cb4d12;
+        font-size: 1.18rem;
+    }
+
+    .empty-state {
+        color: #5f6d81;
     }
 
     .profile-photo {
         width: min(68vw, 260px);
         height: min(68vw, 260px);
         object-fit: cover;
+        cursor: pointer;
+    }
+
+    @media (min-width: 768px) {
+        .dash-card {
+            padding: 1.15rem;
+        }
     }
 </style>
 {% endblock %}

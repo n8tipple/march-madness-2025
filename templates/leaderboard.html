@@ -25,7 +25,7 @@
                     <div class="progress-bar" role="progressbar" style="width: {{ fill_pct }}%;" aria-valuenow="{{ fill_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
             </div>
-            <div class="text-end">
+            <div class="text-end leader-points">
                 <span class="badge bg-dark">{{ user.points }} pts</span>
             </div>
         </div>
@@ -49,55 +49,84 @@
 </div>
 
 <style>
+    .leaderboard {
+        display: grid;
+        gap: 0.62rem;
+    }
+
     .leaderboard-item {
-        background-color: #f8fbff;
-        border: 1px solid #dce4ee;
+        background:
+            radial-gradient(24rem 12rem at 100% 0, rgba(10, 77, 104, 0.08), transparent 45%),
+            #fffdfa;
+        border: 1px solid #e2cfb3;
+        box-shadow: 0 9px 18px rgba(20, 31, 47, 0.08);
+        transition: transform 0.16s ease, box-shadow 0.2s ease;
+    }
+
+    .leaderboard-item:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 13px 24px rgba(20, 31, 47, 0.12);
     }
 
     .rank-badge {
-        min-width: 52px;
+        min-width: 58px;
         text-align: center;
+        font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+        font-size: 1.15rem;
         font-weight: 700;
-        color: #0d6efd;
-        background: #eaf2ff;
+        color: #163754;
+        background: linear-gradient(125deg, #ffe8bf 0%, #ffd088 100%);
+        border: 1px solid #e4bf72;
         border-radius: 999px;
-        padding: 0.25rem 0.45rem;
-        font-size: 0.9rem;
+        padding: 0.16rem 0.5rem;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
     }
 
     .leader-photo {
-        width: 42px;
-        height: 42px;
+        width: 48px;
+        height: 48px;
         object-fit: cover;
-        border: 1px solid #dce4ee;
-        border-radius: 0.55rem;
+        border: 2px solid #f5e2c7;
+        border-radius: 0.78rem;
         cursor: pointer;
+        box-shadow: 0 5px 14px rgba(20, 31, 47, 0.15);
     }
 
     .leader-name {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        font-size: 0.95rem;
+        font-weight: 700;
+        font-size: 0.94rem;
+    }
+
+    .leader-points .badge {
+        font-size: 0.82rem;
+        border-radius: 999px;
+        padding: 0.4rem 0.6rem;
     }
 
     .progress {
-        height: 0.45rem;
-        background: #e8edf5;
+        height: 0.54rem;
+        background: #ece7e0;
     }
 
     .progress-bar {
-        background: linear-gradient(90deg, #0d6efd 0%, #17a2b8 100%);
+        border-radius: 999px;
     }
 
     @media (min-width: 768px) {
         .leaderboard-item {
-            padding: 0.9rem;
+            padding: 0.95rem;
         }
 
         .leader-photo {
-            width: 50px;
-            height: 50px;
+            width: 56px;
+            height: 56px;
+        }
+
+        .leader-name {
+            font-size: 1.04rem;
         }
     }
 </style>
