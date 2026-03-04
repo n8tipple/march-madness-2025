@@ -1,4 +1,5 @@
 import os
+import sys
 import uuid
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from flask import Flask, render_template, redirect, url_for, request, flash, g, has_request_context
@@ -17,11 +18,20 @@ try:
 except ValueError:
     app.config['TOURNAMENT_YEAR'] = 2026
 
-try:
-    with open('secret_key.txt', 'r') as f:
-        app.config['SECRET_KEY'] = f.read().strip()
-except FileNotFoundError:
-    raise Exception("Error: secret_key.txt not found in project directory. Please create it with a secure key.")
+secret_key = os.getenv('SECRET_KEY')
+if not secret_key:
+    secret_key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'secret_key.txt')
+    try:
+        with open(secret_key_path, 'r') as f:
+            secret_key = f.read().strip()
+    except FileNotFoundError:
+        # Avoid cold-start crashes on serverless; use an ephemeral key as last resort.
+        secret_key = os.urandom(32).hex()
+        print(
+            "WARNING: SECRET_KEY env var and secret_key.txt are missing; using ephemeral key.",
+            file=sys.stderr,
+        )
+app.config['SECRET_KEY'] = secret_key
 
 
 def normalize_database_url(raw_url):
