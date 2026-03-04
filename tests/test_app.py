@@ -187,13 +187,14 @@ class AuthAndHomeRouteTests(BaseTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/dashboard", response.headers["Location"])
 
-    def test_home_shows_final_leaderboard_when_everything_complete(self):
+    def test_home_shows_landing_page_when_everything_complete(self):
         round_obj = self.create_round("Championship", closed=True, closed_for_selection=True)
         self.create_game(round_obj, "A", "B", winner="A")
 
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Leaderboard", response.data)
+        self.assertIn(b"No active round right now", response.data)
+        self.assertIn(b"Warmup Mode", response.data)
 
 
 class PickRouteTests(BaseTestCase):

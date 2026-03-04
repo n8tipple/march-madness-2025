@@ -349,18 +349,6 @@ def inject_user_points():
 # Routes
 @app.route('/')
 def home():
-    pending_game = Round.query.join(Game).filter(Game.winner.is_(None)).first()
-    all_rounds_complete = pending_game is None and Round.query.first() is not None
-    if all_rounds_complete:
-        users = get_users_with_points()
-        closed_rounds, leaderboard_picks = build_leaderboard_pick_data(users)
-        return render_template(
-            'leaderboard.html',
-            users=users,
-            final=True,
-            closed_rounds=closed_rounds,
-            leaderboard_picks=leaderboard_picks,
-        )
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     current_round = Round.query.filter_by(closed=False).order_by(Round.id).first()
