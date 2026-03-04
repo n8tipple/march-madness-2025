@@ -193,42 +193,85 @@
 </script>
 
 <style>
-    /* General Table Styles */
     table {
         table-layout: fixed;
         width: 100%;
     }
+
     td {
         word-wrap: break-word;
         vertical-align: middle;
     }
 
-    /* Grid Styles for Summary View */
+    .view-content h3 {
+        font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+        font-size: 1.55rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        margin: 0.2rem 0 0.7rem;
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 0.45rem;
+    }
+
+    .flex-wrap {
+        flex-wrap: wrap;
+    }
+
+    .round-buttons .btn,
+    .view-buttons .btn {
+        flex: 1 1 110px;
+        border-radius: 0.72rem !important;
+        font-size: 0.78rem;
+        font-weight: 700;
+        line-height: 1.25;
+        padding: 0.48rem 0.42rem;
+    }
+
+    .view-content.hidden {
+        display: none;
+    }
+
     .grid-container {
         display: grid;
         grid-template-columns: 150px repeat({{ user_totals_by_round.values()|first|length }}, minmax(58px, 1fr));
         grid-auto-rows: min-content;
-        overflow-x: auto;
-        border: 1px solid #dee2e6;
+        overflow: auto;
+        border: 1px solid #e1cfb3;
+        border-radius: 0.86rem;
+        background: #fffdfa;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
     }
+
     .grid-header, .grid-game, .grid-cell, .grid-total {
-        padding: 5px;
+        padding: 0.34rem 0.3rem;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 1px solid #dee2e6;
-        min-height: 40px; /* Ensure consistent row height */
+        border: 1px solid #ebdfcc;
+        min-height: 40px;
     }
+
+    .grid-header {
+        background: #fff3df;
+        color: #173551;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+    }
+
     .sticky-top {
         position: sticky;
         top: 0;
-        background-color: #fff;
+        background: #fff3df;
         z-index: 10;
     }
+
     .sticky-left {
         position: sticky;
         left: 0;
-        background-color: #fff;
+        background: #fffdfa;
         z-index: 5;
     }
 
@@ -236,54 +279,82 @@
         justify-content: flex-start;
         padding-left: 0.45rem;
         text-align: left;
+        font-weight: 700;
+        color: #1a3652;
+    }
+
+    .rotated-text {
+        height: 95px;
+        align-items: flex-end;
+        padding-bottom: 0.45rem;
     }
 
     .rotated-text span {
         display: inline-block;
-        transform: rotate(-90deg);
+        transform: rotate(-76deg);
+        transform-origin: center center;
         white-space: nowrap;
+        font-size: 0.76rem;
     }
-    .rotated-text {
-        height: 100px;
+
+    .grid-cell {
+        font-weight: 700;
+        font-size: 0.86rem;
     }
+
+    .grid-total {
+        background: #16314a;
+        color: #eef6ff;
+        font-weight: 800;
+    }
+
     .table-success {
-        background-color: #d4edda; /* Green */
+        background-color: rgba(31, 157, 106, 0.18) !important;
+        color: #17573d;
     }
+
     .table-danger {
-        background-color: #f8d7da; /* Red */
+        background-color: rgba(198, 64, 75, 0.16) !important;
+        color: #742932;
     }
+
     .table-dark {
-        background-color: #343a40; /* Dark gray */
-        color: #fff;
+        background: linear-gradient(120deg, #15314a 0%, #0a4d68 100%);
+        color: #eef6ff;
     }
 
-    /* Button Styles */
-    .btn-outline-primary.active {
-        background-color: #007bff;
-        color: white;
-        border-color: #007bff;
-    }
-    .view-content.hidden {
-        display: none;
-    }
-    .btn-group {
-        display: flex;
-    }
-    .flex-wrap {
-        flex-wrap: wrap;
+    .card-header.bg-dark {
+        background: linear-gradient(120deg, #15314a 0%, #0a4d68 100%) !important;
+        border-bottom: 0;
     }
 
-    .round-buttons .btn,
-    .view-buttons .btn {
-        font-size: 0.82rem;
-        padding: 0.45rem 0.35rem;
+    .card-header h5 {
+        margin: 0;
+        font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+        font-size: 1.2rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+
+    .card-body p {
+        color: #1e3652;
+        margin-bottom: 0.72rem;
+    }
+
+    .card-body p strong {
+        color: #0d2a45;
+    }
+
+    .card-body .table-responsive {
+        border-color: #e4d3b9;
     }
 
     @media (min-width: 768px) {
         .round-buttons .btn,
         .view-buttons .btn {
-            font-size: 0.95rem;
-            padding: 0.48rem 0.75rem;
+            flex-basis: 130px;
+            font-size: 0.9rem;
+            padding: 0.5rem 0.75rem;
         }
     }
 
@@ -294,11 +365,14 @@
 
         .rotated-text span {
             transform: rotate(0);
+            font-size: 0.72rem;
         }
 
         .rotated-text {
             height: auto;
             min-height: 40px;
+            align-items: center;
+            padding-bottom: 0;
         }
 
         .grid-header,
@@ -307,6 +381,10 @@
         .grid-total {
             font-size: 0.78rem;
             line-height: 1.2;
+        }
+
+        .view-content h3 {
+            font-size: 1.38rem;
         }
     }
 </style>

@@ -46,10 +46,10 @@
     {% endif %}
 
     <div id="pickError" class="alert alert-danger d-none" role="alert">
-        Please select a winner for every game before submitting.
+        Please select a team for this game.
     </div>
     <div class="table-responsive">
-        <table class="table table-striped table-sm align-middle mb-0">
+        <table class="table table-striped table-sm align-middle mb-0 picks-table">
             <thead class="table-dark">
                 <tr>
                     <th>Team 1</th>
@@ -139,16 +139,29 @@
 
 <style>
     .wager-card {
-        max-width: 320px;
-        padding: 0.75rem;
+        max-width: 360px;
+        padding: 0.85rem;
+    }
+
+    .picks-table th {
+        text-transform: uppercase;
+        font-size: 0.78rem;
+        letter-spacing: 0.06em;
     }
 
     .pick-cell {
         cursor: pointer;
+        transition: background-color 0.18s ease;
     }
 
     .pick-cell:hover {
-        background-color: #f5f8fc;
+        background-color: rgba(10, 77, 104, 0.08);
+    }
+
+    .pick-cell .form-check-label {
+        width: 100%;
+        font-weight: 700;
+        color: #173551;
     }
 
     .submit-btn {
