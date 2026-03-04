@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-header">
     <h2 class="page-title">Leaderboard</h2>
-    <p class="page-subtitle">Tap a photo to enlarge.</p>
+    <p class="page-subtitle">Tap a photo for details.</p>
 </div>
 
 {% set max_points = users|map(attribute='points')|max if users else 1 %}
@@ -77,7 +77,7 @@
                                         <table class="table table-sm mb-0">
                                             <thead>
                                                 <tr>
-                                                    <th style="width: 58%;">Game</th>
+                                                    <th style="width: 58%;">Game (Pick is Bold)</th>
                                                     <th style="width: 27%;">Winner</th>
                                                     <th style="width: 15%;" class="text-center">Pts</th>
                                                 </tr>
