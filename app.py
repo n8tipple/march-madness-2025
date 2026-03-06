@@ -1,6 +1,11 @@
 import os
 import sys
 import uuid
+import json
+import ssl
+import re
+import urllib.error
+import urllib.request
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from flask import Flask, render_template, redirect, url_for, request, flash, g, has_request_context
 from flask_sqlalchemy import SQLAlchemy
@@ -13,6 +18,10 @@ from sqlalchemy.dialects import registry as sqlalchemy_registry
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import joinedload
 from werkzeug.exceptions import HTTPException
+try:
+    import certifi
+except ImportError:
+    certifi = None
 
 load_dotenv()
 
@@ -29,6 +38,27 @@ def env_value(key, default=None):
         if value.startswith(prefix):
             return value[len(prefix):]
     return value
+
+
+HENRYGD_API_BASE_URL = env_value('HENRYGD_API_BASE_URL', 'https://ncaa-api.henrygd.me')
+HENRYGD_SPORT = env_value('HENRYGD_SPORT', 'basketball-men')
+HENRYGD_DIVISION = env_value('HENRYGD_DIVISION', 'd1')
+TOURNAMENT_ROUND_NAMES = [
+    'First Round (Round of 64)',
+    'Second Round (Round of 32)',
+    'Sweet 16',
+    'Elite Eight',
+    'Final Four',
+    'Championship',
+]
+HENRYGD_DEPTH_TO_ROUND = {
+    5: 'First Round (Round of 64)',
+    4: 'Second Round (Round of 32)',
+    3: 'Sweet 16',
+    2: 'Elite Eight',
+    1: 'Final Four',
+    0: 'Championship',
+}
 
 
 try:
@@ -234,6 +264,245 @@ def parse_non_negative_int(value, default=0):
         return default
 
 
+def normalize_team_name(name):
+    if not name:
+        return ''
+    canonical = re.sub(r'[^a-z0-9 ]+', ' ', str(name).lower())
+    canonical = re.sub(r'\s+', ' ', canonical).strip()
+    if not canonical:
+        return ''
+
+    tokens = canonical.split()
+    if tokens and tokens[0] == 'st':
+        tokens[0] = 'saint'
+    if len(tokens) >= 2 and tokens[-1] == 'st' and tokens[-2] != 'saint':
+        tokens[-1] = 'state'
+
+    canonical = ' '.join(tokens)
+    alias_map = {
+        'saint francis u': 'saint francis',
+        'st francis u': 'saint francis',
+        'texas a m': 'texas am',
+        'texas a and m': 'texas am',
+        'saint mary s': 'saint marys',
+        'saint marys ca': 'saint marys',
+        'saint peters': 'saint peters',
+        'st peters': 'saint peters',
+    }
+    return alias_map.get(canonical, canonical)
+
+
+def build_henrygd_ssl_context():
+    custom_ca_bundle = os.getenv('HENRYGD_CA_BUNDLE') or os.getenv('SSL_CERT_FILE')
+    if custom_ca_bundle:
+        return ssl.create_default_context(cafile=custom_ca_bundle)
+    if certifi is not None:
+        return ssl.create_default_context(cafile=certifi.where())
+    return ssl.create_default_context()
+
+
+def fetch_henrygd_bracket_payload(year):
+    endpoint = (
+        f"{HENRYGD_API_BASE_URL.rstrip('/')}"
+        f"/brackets/{HENRYGD_SPORT}/{HENRYGD_DIVISION}/{year}"
+    )
+    req = urllib.request.Request(
+        endpoint,
+        headers={
+            'Accept': 'application/json',
+            'User-Agent': 'march-madness-sync/1.0',
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30, context=build_henrygd_ssl_context()) as response:
+            body = response.read().decode('utf-8')
+            return json.loads(body) if body else {}
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode('utf-8')
+        raise RuntimeError(f"HenryGD API error {exc.code}: {error_body}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"HenryGD API network error: {exc.reason}") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"HenryGD API returned invalid JSON: {exc}") from exc
+
+
+def build_henrygd_games_by_round(payload):
+    championships = payload.get('championships')
+    if not championships or not isinstance(championships, list):
+        raise RuntimeError("HenryGD response missing 'championships'")
+    bracket_games = championships[0].get('games') or []
+    if not isinstance(bracket_games, list):
+        raise RuntimeError("HenryGD response has invalid 'games' format")
+
+    games_by_position = {}
+    for game in bracket_games:
+        position_id = game.get('bracketPositionId')
+        if position_id is not None:
+            games_by_position[str(position_id)] = game
+
+    depth_cache = {}
+
+    def depth_for_position(position_id, trail=None):
+        if position_id in depth_cache:
+            return depth_cache[position_id]
+        game = games_by_position.get(position_id)
+        if not game:
+            return 0
+        parent_id = game.get('victorBracketPositionId')
+        if parent_id is None:
+            depth_cache[position_id] = 0
+            return 0
+        parent_key = str(parent_id)
+        if parent_key not in games_by_position:
+            depth_cache[position_id] = 0
+            return 0
+        if trail and position_id in trail:
+            depth_cache[position_id] = 0
+            return 0
+        next_trail = set(trail or set())
+        next_trail.add(position_id)
+        depth_cache[position_id] = 1 + depth_for_position(parent_key, next_trail)
+        return depth_cache[position_id]
+
+    games_by_round = {}
+    for game in bracket_games:
+        position_id = game.get('bracketPositionId')
+        if position_id is None:
+            continue
+        depth = depth_for_position(str(position_id))
+        round_name = HENRYGD_DEPTH_TO_ROUND.get(depth)
+        if not round_name:
+            continue
+
+        teams = []
+        winner_name = None
+        for team in game.get('teams') or []:
+            team_name = team.get('nameShort') or team.get('nameFull') or team.get('seoname')
+            if not team_name:
+                continue
+            teams.append(team_name)
+            if team.get('isWinner'):
+                winner_name = team_name
+
+        if len(teams) < 2:
+            continue
+
+        games_by_round.setdefault(round_name, []).append(
+            {
+                'position_id': position_id,
+                'team1': teams[0],
+                'team2': teams[1],
+                'winner': winner_name,
+            }
+        )
+
+    for round_games in games_by_round.values():
+        round_games.sort(key=lambda game: game['position_id'])
+
+    return games_by_round
+
+
+def resolve_round_winner_name(local_game, external_winner_name):
+    winner_key = normalize_team_name(external_winner_name)
+    if winner_key == normalize_team_name(local_game.team1):
+        return local_game.team1
+    if winner_key == normalize_team_name(local_game.team2):
+        return local_game.team2
+    return None
+
+
+def apply_henrygd_winners_to_round(round_obj, external_games):
+    if not round_obj or not external_games:
+        return 0
+
+    local_games = list(round_obj.games)
+    if not local_games:
+        return 0
+
+    local_pair_map = {}
+    for game in local_games:
+        pair_key = frozenset({normalize_team_name(game.team1), normalize_team_name(game.team2)})
+        local_pair_map.setdefault(pair_key, []).append(game)
+
+    updated = 0
+    used_game_ids = set()
+    for external_game in external_games:
+        pair_key = frozenset(
+            {
+                normalize_team_name(external_game['team1']),
+                normalize_team_name(external_game['team2']),
+            }
+        )
+        candidates = [game for game in local_pair_map.get(pair_key, []) if game.id not in used_game_ids]
+        if len(candidates) != 1:
+            continue
+
+        game = candidates[0]
+        used_game_ids.add(game.id)
+        external_winner = external_game.get('winner')
+        if not external_winner:
+            continue
+
+        resolved_winner = resolve_round_winner_name(game, external_winner)
+        if resolved_winner and game.winner != resolved_winner:
+            game.winner = resolved_winner
+            updated += 1
+
+    return updated
+
+
+def sync_tournament_from_henrygd(payload=None):
+    payload = payload or fetch_henrygd_bracket_payload(app.config['TOURNAMENT_YEAR'])
+    external_games_by_round = build_henrygd_games_by_round(payload)
+
+    summary = {
+        'winners_updated': 0,
+        'rounds_closed': [],
+        'rounds_created': [],
+    }
+    rounds_by_name = {round_obj.name: round_obj for round_obj in Round.query.order_by(Round.id).all()}
+
+    for index, round_name in enumerate(TOURNAMENT_ROUND_NAMES):
+        round_obj = rounds_by_name.get(round_name)
+        if not round_obj and index > 0:
+            prev_round_name = TOURNAMENT_ROUND_NAMES[index - 1]
+            prev_round = rounds_by_name.get(prev_round_name)
+            if prev_round and len(prev_round.games) >= 2 and all(game.winner for game in prev_round.games):
+                if not prev_round.closed:
+                    prev_round.closed = True
+                    prev_round.closed_for_selection = True
+                    db.session.commit()
+                calculate_points(prev_round)
+                round_obj = create_next_round(prev_round)
+                rounds_by_name[round_obj.name] = round_obj
+                summary['rounds_created'].append(round_obj.name)
+        if not round_obj:
+            continue
+
+        winners_updated = apply_henrygd_winners_to_round(round_obj, external_games_by_round.get(round_name, []))
+        summary['winners_updated'] += winners_updated
+        if winners_updated:
+            db.session.commit()
+
+        if round_obj.games and all(game.winner for game in round_obj.games):
+            if not round_obj.closed:
+                round_obj.closed = True
+                round_obj.closed_for_selection = True
+                db.session.commit()
+                summary['rounds_closed'].append(round_name)
+            calculate_points(round_obj)
+
+            has_next_round = round_name != TOURNAMENT_ROUND_NAMES[-1]
+            if has_next_round and len(round_obj.games) >= 2:
+                next_round_name = TOURNAMENT_ROUND_NAMES[index + 1]
+                if next_round_name not in rounds_by_name:
+                    next_round = create_next_round(round_obj)
+                    rounds_by_name[next_round.name] = next_round
+                    summary['rounds_created'].append(next_round.name)
+
+    return summary
+
+
 def calculate_points(round):
     games = Game.query.filter_by(round_id=round.id).filter(Game.winner.isnot(None)).all()
     picks = Pick.query.filter(Pick.game_id.in_([g.id for g in games])).all()
@@ -253,9 +522,8 @@ def calculate_points(round):
     db.session.commit()
 
 def create_next_round(current_round):
-    round_names = ['First Round (Round of 64)', 'Second Round (Round of 32)', 'Sweet 16', 'Elite Eight', 'Final Four', 'Championship']
-    idx = round_names.index(current_round.name)
-    next_round_name = round_names[idx + 1]
+    idx = TOURNAMENT_ROUND_NAMES.index(current_round.name)
+    next_round_name = TOURNAMENT_ROUND_NAMES[idx + 1]
     point_value = current_round.point_value * 2 if next_round_name != 'Championship' else current_round.point_value
     next_round = Round(name=next_round_name, point_value=point_value, closed=True, closed_for_selection=True)
     db.session.add(next_round)
@@ -536,9 +804,8 @@ def admin():
                     else:
                         team1 = request.form.get(f'game{game.id}_team1_select')
                         team2 = request.form.get(f'game{game.id}_team2_select')
-                        round_names = ['First Round (Round of 64)', 'Second Round (Round of 32)', 'Sweet 16', 'Elite Eight', 'Final Four', 'Championship']
-                        prev_round_idx = round_names.index(selected_round.name) - 1
-                        prev_round = Round.query.filter_by(name=round_names[prev_round_idx]).first()
+                        prev_round_idx = TOURNAMENT_ROUND_NAMES.index(selected_round.name) - 1
+                        prev_round = Round.query.filter_by(name=TOURNAMENT_ROUND_NAMES[prev_round_idx]).first()
                         prev_winners = [game.winner for game in prev_round.games if game.winner] if prev_round else []
                         if team1 in prev_winners and team2 in prev_winners and team1 != team2:
                             game.team1 = team1
@@ -561,8 +828,7 @@ def admin():
                 
                 if 'next_round' in request.form and selected_round.name != 'Championship':
                     if all(game.winner for game in selected_round.games):
-                        round_names = ['First Round (Round of 64)', 'Second Round (Round of 32)', 'Sweet 16', 'Elite Eight', 'Final Four', 'Championship']
-                        next_round_name = round_names[round_names.index(selected_round.name) + 1]
+                        next_round_name = TOURNAMENT_ROUND_NAMES[TOURNAMENT_ROUND_NAMES.index(selected_round.name) + 1]
                         if not Round.query.filter_by(name=next_round_name).first():
                             selected_round.closed = True
                             selected_round.closed_for_selection = True
@@ -583,9 +849,8 @@ def admin():
     
     prev_round = None
     if selected_round and selected_round.name != 'First Round (Round of 64)':
-        round_names = ['First Round (Round of 64)', 'Second Round (Round of 32)', 'Sweet 16', 'Elite Eight', 'Final Four', 'Championship']
-        prev_round_idx = round_names.index(selected_round.name) - 1
-        prev_round = Round.query.filter_by(name=round_names[prev_round_idx]).first()
+        prev_round_idx = TOURNAMENT_ROUND_NAMES.index(selected_round.name) - 1
+        prev_round = Round.query.filter_by(name=TOURNAMENT_ROUND_NAMES[prev_round_idx]).first()
     prev_winners = [game.winner for game in prev_round.games if game.winner] if prev_round else []
     
     users = User.query.all()
@@ -601,6 +866,31 @@ def admin():
             })
 
     return render_template('admin.html', all_rounds=all_rounds, selected_round=selected_round, prev_winners=prev_winners, users_with_picks=users_with_picks, is_chris=is_chris)
+
+@app.route('/admin_sync_henrygd', methods=['POST'])
+@login_required
+def admin_sync_henrygd():
+    if not current_user.is_admin:
+        flash('Access denied', 'danger')
+        return redirect(url_for('home'))
+
+    selected_round_id = request.form.get('round_id', type=int)
+    try:
+        summary = sync_tournament_from_henrygd()
+        success_message = (
+            "HenryGD sync complete: "
+            f"{summary['winners_updated']} winner(s) updated, "
+            f"{len(summary['rounds_closed'])} round(s) closed, "
+            f"{len(summary['rounds_created'])} round(s) created."
+        )
+        flash(success_message, 'success')
+    except Exception as exc:
+        logger.exception("HenryGD sync failed")
+        flash(f'HenryGD sync failed: {exc}', 'danger')
+
+    if selected_round_id:
+        return redirect(url_for('admin', round_id=selected_round_id))
+    return redirect(url_for('admin'))
 
 @app.route('/admin_submit_picks', methods=['GET', 'POST'])
 @login_required

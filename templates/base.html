@@ -120,17 +120,13 @@
 
         .navbar-toggler-icon {
             width: 31px;
-            height: 3px;
-            border-radius: 999px;
-            background-color: #6f6f72;
-            background-image: none;
+            height: 21px;
+            background-image: none !important;
             position: relative;
-            transition: background-color 0.18s ease;
+            display: block;
         }
 
-        .navbar-toggler-icon::before,
-        .navbar-toggler-icon::after {
-            content: "";
+        .navbar-toggler-icon .menu-line {
             position: absolute;
             left: 0;
             width: 31px;
@@ -138,14 +134,19 @@
             border-radius: 999px;
             background-color: #6f6f72;
             transition: transform 0.22s ease, top 0.22s ease, opacity 0.2s ease;
+            transform-origin: center;
         }
 
-        .navbar-toggler-icon::before {
-            top: -9px;
+        .navbar-toggler-icon .menu-line:nth-child(1) {
+            top: 0;
         }
 
-        .navbar-toggler-icon::after {
+        .navbar-toggler-icon .menu-line:nth-child(2) {
             top: 9px;
+        }
+
+        .navbar-toggler-icon .menu-line:nth-child(3) {
+            top: 18px;
         }
 
         .navbar-toggler[aria-expanded="true"] {
@@ -153,17 +154,18 @@
             background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
         }
 
-        .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon {
-            background-color: transparent;
-        }
-
-        .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon::before {
-            top: 0;
+        .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon .menu-line:nth-child(1) {
+            top: 9px;
             transform: rotate(45deg);
         }
 
-        .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon::after {
-            top: 0;
+        .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon .menu-line:nth-child(2) {
+            opacity: 0;
+            transform: scaleX(0.4);
+        }
+
+        .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon .menu-line:nth-child(3) {
+            top: 9px;
             transform: rotate(-45deg);
         }
 
@@ -547,7 +549,11 @@
     <nav class="navbar navbar-expand-lg navbar-light">
         <a class="navbar-brand" href="{{ url_for('home') }}">March Madness {{ tournament_year }}</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
+            <span class="navbar-toggler-icon" aria-hidden="true">
+                <span class="menu-line"></span>
+                <span class="menu-line"></span>
+                <span class="menu-line"></span>
+            </span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <div class="navbar-nav me-auto nav-actions">

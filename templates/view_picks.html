@@ -103,7 +103,7 @@
                                     <tr>
                                         <th style="width: 30%;">User</th>
                                         <th style="width: 45%;">Pick</th>
-                                        <th style="width: 25%;" class="text-center">Points</th>
+                                        <th style="width: 25%;" class="text-center points-column">Points</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -111,7 +111,7 @@
                                     <tr class="{{ 'table-success' if pick.picked_team == game.winner else 'table-danger' if game.winner else '' }}">
                                         <td>{{ pick.user.username }}</td>
                                         <td>{{ pick.picked_team }}</td>
-                                        <td class="text-center">
+                                        <td class="text-center points-column">
                                             {% if game.winner %}
                                                 {% if pick.picked_team == game.winner %}
                                                     {% if round.name == 'Championship' %}
@@ -351,6 +351,19 @@
 
     .card-body .table-responsive {
         border-color: #e4d3b9;
+    }
+
+    #detailed-view .table {
+        table-layout: auto;
+    }
+
+    #detailed-view thead th {
+        white-space: nowrap;
+    }
+
+    #detailed-view .points-column {
+        white-space: nowrap;
+        min-width: 4.8rem;
     }
 
     @media (min-width: 768px) {
