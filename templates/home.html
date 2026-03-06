@@ -133,15 +133,11 @@
             </div>
         </div>
         <div class="court-mode-toggle-wrap">
-            <span class="court-mode-label" id="courtModeLabel">Mode: Pro</span>
-            <button type="button"
-                    class="court-mode-toggle is-pro"
-                    id="courtModeToggle"
-                    role="switch"
-                    aria-checked="true"
-                    aria-label="Warmup mode switch">
-                <span class="mode-thumb" aria-hidden="true"></span>
-            </button>
+            <div class="court-mode-segmented" id="courtModeSegmented" role="group" aria-label="Warmup mode">
+                <button type="button" class="mode-segment" data-mode="noob">Noob</button>
+                <button type="button" class="mode-segment" data-mode="novice">Novice</button>
+                <button type="button" class="mode-segment is-active" data-mode="pro">Pro</button>
+            </div>
         </div>
         <div class="pro-release-line" id="proReleaseLine" aria-hidden="true"></div>
         <div class="noob-meme-overlay" id="noobMemeOverlay" hidden aria-hidden="true">
@@ -249,76 +245,53 @@
         z-index: 8;
         top: 0.58rem;
         right: 0.62rem;
-        display: flex;
-        align-items: center;
-        gap: 0.34rem;
     }
 
-    .court-mode-label {
-        min-width: 82px;
+    .court-mode-segmented {
+        display: inline-flex;
+        align-items: center;
         border-radius: 999px;
-        padding: 0.22rem 0.46rem;
-        text-align: center;
-        font-size: 0.62rem;
-        line-height: 1.2;
-        font-weight: 800;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: #fff6f2;
-        background: rgba(123, 24, 20, 0.86);
-        border: 1px solid rgba(249, 186, 171, 0.72);
+        padding: 2px;
+        background: rgba(13, 34, 54, 0.9);
+        border: 1px solid rgba(173, 197, 218, 0.62);
         box-shadow: 0 5px 12px rgba(20, 31, 47, 0.16);
     }
 
-    .court-playground:not(.pro-mode) .court-mode-label {
-        color: #eaf7ff;
-        background: rgba(16, 86, 132, 0.86);
-        border-color: rgba(174, 220, 250, 0.72);
-    }
-
-    .court-mode-toggle {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        width: 56px;
-        height: 30px;
+    .mode-segment {
+        border: 0;
         border-radius: 999px;
-        padding: 2px;
-        background: linear-gradient(180deg, #f7fbff 0%, #dfeaf6 100%);
-        border: 2px solid #9bb4cb;
-        box-shadow: 0 5px 14px rgba(20, 31, 47, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.34);
-        transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.2s ease, background 0.2s ease;
+        padding: 0.24rem 0.48rem;
+        min-width: 52px;
+        font-size: 0.61rem;
+        line-height: 1.15;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #dce8f4;
+        background: transparent;
+        transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
     }
 
-    .court-mode-toggle:hover {
+    .mode-segment:hover {
+        color: #ffffff;
         transform: translateY(-1px);
-        box-shadow: 0 8px 16px rgba(20, 31, 47, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.38);
     }
 
-    .court-mode-toggle.is-pro {
-        border-color: #d1877f;
-        background: linear-gradient(180deg, #ffe7e1 0%, #ffcdbf 100%);
+    .mode-segment.is-active {
+        color: #ffffff;
+        background: linear-gradient(180deg, #1c658d 0%, #114865 100%);
     }
 
-    .court-mode-toggle.is-noob {
-        border-color: #7aa4cf;
-        background: linear-gradient(180deg, #e5f5ff 0%, #c8e8fb 100%);
+    .mode-segment[data-mode="noob"].is-active {
+        background: linear-gradient(180deg, #2f80b6 0%, #1c628f 100%);
     }
 
-    .mode-thumb {
-        display: block;
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        background: radial-gradient(circle at 32% 30%, #ffffff 0%, #edf4ff 62%, #ccd9e8 100%);
-        border: 1px solid rgba(14, 37, 56, 0.24);
-        box-shadow: 0 2px 5px rgba(20, 31, 47, 0.24);
-        transform: translateX(0);
-        transition: transform 0.2s ease;
+    .mode-segment[data-mode="novice"].is-active {
+        background: linear-gradient(180deg, #b7683f 0%, #924228 100%);
     }
 
-    .court-mode-toggle.is-noob .mode-thumb {
-        transform: translateX(24px);
+    .mode-segment[data-mode="pro"].is-active {
+        background: linear-gradient(180deg, #b03b34 0%, #821f1b 100%);
     }
 
     .court-scoreboard {
@@ -349,6 +322,11 @@
         transition: opacity 0.18s ease;
     }
 
+    .court-playground.noob-mode .pro-release-line {
+        opacity: 0;
+    }
+
+    .court-playground.novice-mode .pro-release-line,
     .court-playground.pro-mode .pro-release-line {
         opacity: 1;
     }
@@ -649,8 +627,8 @@
     const rimHitbox = document.getElementById('rimHitbox');
     const backboard = document.getElementById('courtBackboard');
     const rim = document.getElementById('courtRim');
-    const modeToggle = document.getElementById('courtModeToggle');
-    const modeLabel = document.getElementById('courtModeLabel');
+    const modeSegmented = document.getElementById('courtModeSegmented');
+    const modeButtons = modeSegmented ? Array.from(modeSegmented.querySelectorAll('[data-mode]')) : [];
     const proReleaseLine = document.getElementById('proReleaseLine');
     const noobMemeOverlay = document.getElementById('noobMemeOverlay');
     const courtLabel = court ? court.querySelector('.court-label') : null;
@@ -691,8 +669,9 @@
         let rimBounds = null;
         let backboardBounds = null;
         let rimCaps = [];
-        let releaseLineY = bounds.height * 0.38;
-        let isProMode = true;
+        let noviceLineY = bounds.height * 0.38;
+        let proLineY = bounds.height * 0.5;
+        let mode = null;
         let memeTimeout = null;
 
         let dragging = false;
@@ -708,26 +687,45 @@
         }
 
         function minDragY() {
-            if (!isProMode) {
+            if (mode === 'noob') {
                 return radius;
             }
+            const releaseLineY = mode === 'pro' ? proLineY : noviceLineY;
             return clamp(releaseLineY, radius, bounds.height - radius);
         }
 
+        function getCurrentLineY() {
+            if (mode === 'noob') {
+                return null;
+            }
+            return mode === 'pro' ? proLineY : noviceLineY;
+        }
+
         function applyModeClasses() {
-            if (modeToggle) {
-                modeToggle.classList.toggle('is-pro', isProMode);
-                modeToggle.classList.toggle('is-noob', !isProMode);
-                modeToggle.setAttribute('aria-checked', String(isProMode));
+            modeButtons.forEach(function(button) {
+                const isActive = button.dataset.mode === mode;
+                button.classList.toggle('is-active', isActive);
+                button.setAttribute('aria-pressed', String(isActive));
+                button.setAttribute('tabindex', isActive ? '0' : '-1');
+            });
+
+            court.classList.toggle('noob-mode', mode === 'noob');
+            court.classList.toggle('novice-mode', mode === 'novice');
+            court.classList.toggle('pro-mode', mode === 'pro');
+
+            const lineY = getCurrentLineY();
+            if (proReleaseLine && lineY !== null) {
+                proReleaseLine.style.top = `${lineY}px`;
             }
-            if (modeLabel) {
-                modeLabel.textContent = isProMode ? 'Mode: Pro' : 'Mode: Noob';
-            }
-            court.classList.toggle('pro-mode', isProMode);
+
             if (courtLabel) {
-                courtLabel.textContent = isProMode
-                    ? 'Warmup Mode: Pro'
-                    : 'Warmup Mode: Noob';
+                if (mode === 'noob') {
+                    courtLabel.textContent = 'Warmup Mode: Noob';
+                } else if (mode === 'novice') {
+                    courtLabel.textContent = 'Warmup Mode: Novice';
+                } else {
+                    courtLabel.textContent = 'Warmup Mode: Pro';
+                }
             }
         }
 
@@ -763,14 +761,20 @@
         }
 
         function setMode(nextMode) {
-            isProMode = nextMode === 'pro';
+            if (!['noob', 'novice', 'pro'].includes(nextMode)) {
+                return;
+            }
+            if (nextMode === mode) {
+                return;
+            }
+            mode = nextMode;
             score = 0;
             scoreCooldown = 0;
             applyModeClasses();
-            if (isProMode) {
-                stopNoobMeme();
-            } else {
+            if (mode === 'noob') {
                 playNoobMeme();
+            } else {
+                stopNoobMeme();
             }
             y = clamp(y, minDragY(), bounds.height - radius);
             renderScore();
@@ -800,17 +804,25 @@
             if (rim) {
                 const rect = rim.getBoundingClientRect();
                 const centerY = rect.top - courtRect.top + rect.height / 2;
-                releaseLineY = Math.max(radius + 10, (rect.top - courtRect.top) - 6);
-                if (proReleaseLine) {
-                    proReleaseLine.style.top = `${releaseLineY}px`;
+                noviceLineY = Math.max(radius + 10, (rect.top - courtRect.top) - 6);
+                if (rimBounds) {
+                    proLineY = Math.max(noviceLineY + 14, rimBounds.top + ((rimBounds.bottom - rimBounds.top) * 0.5));
+                } else {
+                    proLineY = noviceLineY + 32;
+                }
+                if (proReleaseLine && mode !== 'noob') {
+                    proReleaseLine.style.top = `${getCurrentLineY()}px`;
                 }
                 rimCaps = [
                     { x: rect.left - courtRect.left + 11, y: centerY, r: 8 },
                     { x: rect.right - courtRect.left - 11, y: centerY, r: 8 }
                 ];
             } else if (proReleaseLine) {
-                releaseLineY = bounds.height * 0.38;
-                proReleaseLine.style.top = `${releaseLineY}px`;
+                noviceLineY = bounds.height * 0.38;
+                proLineY = bounds.height * 0.5;
+                if (mode !== 'noob') {
+                    proReleaseLine.style.top = `${getCurrentLineY()}px`;
+                }
             }
         }
 
@@ -951,11 +963,12 @@
 
         ball.addEventListener('pointerup', releaseBall);
         ball.addEventListener('pointercancel', releaseBall);
-        if (modeToggle) {
-            modeToggle.addEventListener('click', function() {
-                setMode(isProMode ? 'noob' : 'pro');
+        modeButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                const nextMode = button.dataset.mode || 'pro';
+                setMode(nextMode);
             });
-        }
+        });
 
         function animate() {
             if (!dragging) {
