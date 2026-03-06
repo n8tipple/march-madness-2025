@@ -764,6 +764,8 @@
 
         function setMode(nextMode) {
             isProMode = nextMode === 'pro';
+            score = 0;
+            scoreCooldown = 0;
             applyModeClasses();
             if (isProMode) {
                 stopNoobMeme();
@@ -771,6 +773,7 @@
                 playNoobMeme();
             }
             y = clamp(y, minDragY(), bounds.height - radius);
+            renderScore();
             setBallPosition();
         }
 
