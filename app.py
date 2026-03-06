@@ -595,6 +595,8 @@ def build_leaderboard_pick_data(users):
 
                 rows.append({
                     'game': f'{game.team1} vs {game.team2}',
+                    'team1': game.team1,
+                    'team2': game.team2,
                     'picked_team': picked_team or 'No pick',
                     'winner': winner or 'Pending',
                     'result_label': result_label,
