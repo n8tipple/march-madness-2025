@@ -114,7 +114,7 @@
 
 {% block page_bottom %}
 <section class="court-wrap" aria-label="Basketball playground">
-    <section class="court-playground" id="ballCourt">
+    <section class="court-playground pro-mode" id="ballCourt">
         <p class="court-label mb-0">Warmup Mode: Drag And Fling The Ball</p>
         <div class="court-scoreboard" aria-live="polite">
             <div class="score-display" id="scoreDisplay" aria-label="Scoreboard">
@@ -131,6 +131,19 @@
                     <span class="seg d"></span><span class="seg e"></span><span class="seg f"></span><span class="seg g"></span>
                 </div>
             </div>
+        </div>
+        <div class="court-mode-toggle-wrap">
+            <button type="button" class="court-mode-toggle is-pro" id="courtModeToggle" aria-pressed="false" aria-label="Switch warmup mode">
+                <span class="mode-label mode-label-pro">Pro</span>
+                <span class="mode-divider">/</span>
+                <span class="mode-label mode-label-noob">Noob</span>
+            </button>
+        </div>
+        <div class="pro-release-line" id="proReleaseLine" aria-hidden="true"></div>
+        <div class="noob-meme-overlay" id="noobMemeOverlay" hidden aria-hidden="true">
+            <img src="{{ url_for('static', filename='sad-face-meme-257952408.jpg') }}"
+                 alt="Noob mode meme"
+                 class="noob-meme-image">
         </div>
         <div class="hoop" aria-hidden="true">
             <div class="backboard" id="courtBackboard"></div>
@@ -208,6 +221,7 @@
     }
 
     .court-playground {
+        --pro-line-top: 38%;
         position: relative;
         height: 460px;
         border: 1px solid #dbba95;
@@ -226,6 +240,57 @@
         box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32), 0 10px 24px rgba(20, 31, 47, 0.12);
     }
 
+    .court-mode-toggle-wrap {
+        position: absolute;
+        z-index: 8;
+        top: 0.58rem;
+        right: 0.62rem;
+    }
+
+    .court-mode-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.26rem;
+        border-radius: 0.55rem;
+        padding: 0.31rem 0.56rem;
+        font-size: 0.73rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: #13304a;
+        background: linear-gradient(180deg, #f7fbff 0%, #dfeaf6 100%);
+        border: 2px solid #9bb4cb;
+        box-shadow: 0 5px 14px rgba(20, 31, 47, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.34);
+        transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .court-mode-toggle:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px rgba(20, 31, 47, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.38);
+    }
+
+    .court-mode-toggle.is-pro {
+        border-color: #d1877f;
+        color: #7c1512;
+    }
+
+    .court-mode-toggle.is-pro .mode-label-pro {
+        color: #b71f1a;
+    }
+
+    .court-mode-toggle.is-noob {
+        border-color: #7aa4cf;
+        color: #14456b;
+    }
+
+    .court-mode-toggle.is-noob .mode-label-noob {
+        color: #0e5f99;
+    }
+
+    .mode-divider {
+        opacity: 0.5;
+    }
+
     .court-scoreboard {
         position: absolute;
         z-index: 4;
@@ -240,6 +305,63 @@
         border: 2px solid #0b1f33;
         pointer-events: none;
         box-shadow: inset 0 0 0 1px rgba(166, 206, 238, 0.18), 0 8px 16px rgba(20, 31, 47, 0.2);
+    }
+
+    .pro-release-line {
+        position: absolute;
+        z-index: 2;
+        left: 0.72rem;
+        right: 0.72rem;
+        top: var(--pro-line-top);
+        border-top: 2px dotted rgba(190, 36, 36, 0.72);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease;
+    }
+
+    .court-playground.pro-mode .pro-release-line {
+        opacity: 1;
+    }
+
+    .noob-meme-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+
+    .noob-meme-overlay[hidden] {
+        display: none;
+    }
+
+    .noob-meme-image {
+        width: min(320px, 68%);
+        border-radius: 0.85rem;
+        border: 3px solid rgba(255, 250, 242, 0.9);
+        box-shadow: 0 10px 26px rgba(20, 31, 47, 0.25);
+        transform-origin: center center;
+    }
+
+    .noob-meme-overlay.animate .noob-meme-image {
+        animation: noobMemeShrink 1.9s ease-out forwards;
+    }
+
+    @keyframes noobMemeShrink {
+        0% {
+            opacity: 0.95;
+            transform: scale(1);
+        }
+        72% {
+            opacity: 0.88;
+            transform: scale(0.42);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(0.06);
+        }
     }
 
     .score-display {
@@ -497,6 +619,10 @@
     const rimHitbox = document.getElementById('rimHitbox');
     const backboard = document.getElementById('courtBackboard');
     const rim = document.getElementById('courtRim');
+    const modeToggle = document.getElementById('courtModeToggle');
+    const proReleaseLine = document.getElementById('proReleaseLine');
+    const noobMemeOverlay = document.getElementById('noobMemeOverlay');
+    const courtLabel = court ? court.querySelector('.court-label') : null;
     const scoreDigits = Array.from(document.querySelectorAll('[data-score-digit]'));
 
     if (court && ball) {
@@ -534,6 +660,9 @@
         let rimBounds = null;
         let backboardBounds = null;
         let rimCaps = [];
+        let releaseLineY = bounds.height * 0.38;
+        let isProMode = true;
+        let memeTimeout = null;
 
         let dragging = false;
         let activePointerId = null;
@@ -545,6 +674,70 @@
 
         function setBallPosition() {
             ball.style.transform = `translate(${x - radius}px, ${y - radius}px) rotate(${angle}deg)`;
+        }
+
+        function minDragY() {
+            if (!isProMode) {
+                return radius;
+            }
+            return clamp(releaseLineY, radius, bounds.height - radius);
+        }
+
+        function applyModeClasses() {
+            if (modeToggle) {
+                modeToggle.classList.toggle('is-pro', isProMode);
+                modeToggle.classList.toggle('is-noob', !isProMode);
+                modeToggle.setAttribute('aria-pressed', String(!isProMode));
+            }
+            court.classList.toggle('pro-mode', isProMode);
+            if (courtLabel) {
+                courtLabel.textContent = isProMode
+                    ? 'Warmup Mode: Pro'
+                    : 'Warmup Mode: Noob';
+            }
+        }
+
+        function playNoobMeme() {
+            if (!noobMemeOverlay) {
+                return;
+            }
+            if (memeTimeout) {
+                clearTimeout(memeTimeout);
+                memeTimeout = null;
+            }
+            noobMemeOverlay.hidden = false;
+            noobMemeOverlay.classList.remove('animate');
+            void noobMemeOverlay.offsetWidth;
+            noobMemeOverlay.classList.add('animate');
+            memeTimeout = window.setTimeout(function() {
+                noobMemeOverlay.hidden = true;
+                noobMemeOverlay.classList.remove('animate');
+                memeTimeout = null;
+            }, 1950);
+        }
+
+        function stopNoobMeme() {
+            if (!noobMemeOverlay) {
+                return;
+            }
+            if (memeTimeout) {
+                clearTimeout(memeTimeout);
+                memeTimeout = null;
+            }
+            noobMemeOverlay.hidden = true;
+            noobMemeOverlay.classList.remove('animate');
+        }
+
+        function setMode(nextMode) {
+            isProMode = nextMode === 'pro';
+            applyModeClasses();
+            if (isProMode) {
+                stopNoobMeme();
+            } else {
+                playNoobMeme();
+            }
+            y = clamp(y, minDragY(), bounds.height - radius);
+            setBallPosition();
         }
 
         function updateCourtFeatures() {
@@ -570,10 +763,17 @@
             if (rim) {
                 const rect = rim.getBoundingClientRect();
                 const centerY = rect.top - courtRect.top + rect.height / 2;
+                releaseLineY = Math.max(radius + 10, (rect.top - courtRect.top) - 18);
+                if (proReleaseLine) {
+                    proReleaseLine.style.top = `${releaseLineY}px`;
+                }
                 rimCaps = [
                     { x: rect.left - courtRect.left + 11, y: centerY, r: 8 },
                     { x: rect.right - courtRect.left - 11, y: centerY, r: 8 }
                 ];
+            } else if (proReleaseLine) {
+                releaseLineY = bounds.height * 0.38;
+                proReleaseLine.style.top = `${releaseLineY}px`;
             }
         }
 
@@ -689,7 +889,7 @@
 
             const point = pointerToCourt(evt);
             x = clamp(point.x, radius, bounds.width - radius);
-            y = clamp(point.y, radius, bounds.height - radius);
+            y = clamp(point.y, minDragY(), bounds.height - radius);
             vx = 0;
             vy = 0;
             addTrailSample(performance.now());
@@ -704,7 +904,7 @@
             const prevX = x;
             const point = pointerToCourt(evt);
             x = clamp(point.x, radius, bounds.width - radius);
-            y = clamp(point.y, radius, bounds.height - radius);
+            y = clamp(point.y, minDragY(), bounds.height - radius);
 
             const dx = x - prevX;
             angle += (dx / radius) * radToDeg;
@@ -714,6 +914,11 @@
 
         ball.addEventListener('pointerup', releaseBall);
         ball.addEventListener('pointercancel', releaseBall);
+        if (modeToggle) {
+            modeToggle.addEventListener('click', function() {
+                setMode(isProMode ? 'noob' : 'pro');
+            });
+        }
 
         function animate() {
             if (!dragging) {
@@ -803,6 +1008,7 @@
 
         window.addEventListener('resize', refreshBounds);
         updateCourtFeatures();
+        setMode('pro');
         renderScore();
         setBallPosition();
         requestAnimationFrame(animate);
