@@ -87,8 +87,13 @@
                                                     {% for row in round_data.rows %}
                                                     <tr class="{{ 'table-success' if row.result_key == 'win' else 'table-danger' if row.result_key == 'loss' else '' }}">
                                                         <td>
-                                                            <div>{{ row.game }}</div>
-                                                            <div class="leader-inline-pick"><strong>{{ row.picked_team }}</strong></div>
+                                                            {% if row.picked_team == row.team1 %}
+                                                                <div><strong>{{ row.team1 }}</strong> vs {{ row.team2 }}</div>
+                                                            {% elif row.picked_team == row.team2 %}
+                                                                <div>{{ row.team1 }} vs <strong>{{ row.team2 }}</strong></div>
+                                                            {% else %}
+                                                                <div>{{ row.team1 }} vs {{ row.team2 }}</div>
+                                                            {% endif %}
                                                         </td>
                                                         <td>{{ row.winner }}</td>
                                                         <td class="text-center">{{ row.points }}</td>
@@ -272,11 +277,6 @@
 
     .leader-modal-table-wrap td {
         font-size: 0.82rem;
-    }
-
-    .leader-inline-pick {
-        margin-top: 0.12rem;
-        color: #133450;
     }
 
     @media (min-width: 768px) {
