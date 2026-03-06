@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 TEST_DB_PATH = Path(tempfile.gettempdir()) / "march_madness_2026_test_suite.db"
@@ -14,11 +15,13 @@ from app import (  # noqa: E402
     Round,
     User,
     app,
+    build_henrygd_games_by_round,
     calculate_points,
     create_next_round,
     db,
     get_users_with_points,
     parse_non_negative_int,
+    sync_tournament_from_henrygd,
 )
 
 
@@ -145,6 +148,83 @@ class HelperTests(BaseTestCase):
         self.assertEqual(users[1].username, "trailer")
         self.assertEqual(users[0].points, 8)
         self.assertEqual(users[1].points, 0)
+
+    def test_build_henrygd_games_by_round_maps_round_depths_and_skips_first_four(self):
+        payload = {
+            "championships": [
+                {
+                    "games": [
+                        {"bracketPositionId": 0, "victorBracketPositionId": 1, "teams": [{"nameShort": "P", "isWinner": True}, {"nameShort": "Q", "isWinner": False}]},
+                        {"bracketPositionId": 1, "victorBracketPositionId": 2, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "B", "isWinner": False}]},
+                        {"bracketPositionId": 2, "victorBracketPositionId": 3, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "C", "isWinner": False}]},
+                        {"bracketPositionId": 3, "victorBracketPositionId": 4, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "D", "isWinner": False}]},
+                        {"bracketPositionId": 4, "victorBracketPositionId": 5, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "E", "isWinner": False}]},
+                        {"bracketPositionId": 5, "victorBracketPositionId": 6, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "F", "isWinner": False}]},
+                        {"bracketPositionId": 6, "victorBracketPositionId": None, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "G", "isWinner": False}]},
+                    ]
+                }
+            ]
+        }
+
+        games_by_round = build_henrygd_games_by_round(payload)
+
+        self.assertIn("First Round (Round of 64)", games_by_round)
+        self.assertIn("Second Round (Round of 32)", games_by_round)
+        self.assertIn("Championship", games_by_round)
+        self.assertEqual(len(games_by_round["First Round (Round of 64)"]), 1)
+        self.assertEqual(games_by_round["First Round (Round of 64)"][0]["team1"], "A")
+        self.assertEqual(games_by_round["First Round (Round of 64)"][0]["winner"], "A")
+
+    def test_sync_tournament_from_henrygd_updates_winners_and_creates_second_round(self):
+        user = self.create_user("nate")
+        round_obj = self.create_round("First Round (Round of 64)", point_value=2, closed=False, closed_for_selection=False)
+        game1 = self.create_game(round_obj, "A", "B")
+        game2 = self.create_game(round_obj, "C", "D")
+        game3 = self.create_game(round_obj, "E", "F")
+        game4 = self.create_game(round_obj, "G", "H")
+        self.create_pick(user, game1, "A")
+        self.create_pick(user, game2, "D")
+
+        payload = {
+            "championships": [
+                {
+                    "games": [
+                        {"bracketPositionId": 101, "victorBracketPositionId": 201, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "B", "isWinner": False}]},
+                        {"bracketPositionId": 102, "victorBracketPositionId": 201, "teams": [{"nameShort": "C", "isWinner": True}, {"nameShort": "D", "isWinner": False}]},
+                        {"bracketPositionId": 103, "victorBracketPositionId": 202, "teams": [{"nameShort": "E", "isWinner": True}, {"nameShort": "F", "isWinner": False}]},
+                        {"bracketPositionId": 104, "victorBracketPositionId": 202, "teams": [{"nameShort": "G", "isWinner": True}, {"nameShort": "H", "isWinner": False}]},
+                        {"bracketPositionId": 201, "victorBracketPositionId": 301, "teams": [{"nameShort": "A", "isWinner": False}, {"nameShort": "C", "isWinner": False}]},
+                        {"bracketPositionId": 202, "victorBracketPositionId": 301, "teams": [{"nameShort": "E", "isWinner": False}, {"nameShort": "G", "isWinner": False}]},
+                        {"bracketPositionId": 301, "victorBracketPositionId": 401, "teams": [{"nameShort": "A", "isWinner": False}, {"nameShort": "E", "isWinner": False}]},
+                        {"bracketPositionId": 401, "victorBracketPositionId": 501, "teams": [{"nameShort": "A", "isWinner": False}, {"nameShort": "I", "isWinner": False}]},
+                        {"bracketPositionId": 501, "victorBracketPositionId": 601, "teams": [{"nameShort": "A", "isWinner": False}, {"nameShort": "J", "isWinner": False}]},
+                        {"bracketPositionId": 601, "victorBracketPositionId": None, "teams": [{"nameShort": "A", "isWinner": False}, {"nameShort": "K", "isWinner": False}]},
+                    ]
+                }
+            ]
+        }
+
+        summary = sync_tournament_from_henrygd(payload=payload)
+
+        refreshed_round = db.session.get(Round, round_obj.id)
+        self.assertEqual(summary["winners_updated"], 4)
+        self.assertIn("First Round (Round of 64)", summary["rounds_closed"])
+        self.assertTrue(refreshed_round.closed)
+        self.assertTrue(refreshed_round.closed_for_selection)
+
+        second_round = Round.query.filter_by(name="Second Round (Round of 32)").first()
+        self.assertIsNotNone(second_round)
+        second_round_games = Game.query.filter_by(round_id=second_round.id).order_by(Game.id).all()
+        self.assertEqual(len(second_round_games), 2)
+        self.assertEqual(second_round_games[0].team1, "A")
+        self.assertEqual(second_round_games[0].team2, "C")
+        self.assertEqual(second_round_games[1].team1, "E")
+        self.assertEqual(second_round_games[1].team2, "G")
+
+        scored_pick = Pick.query.filter_by(user_id=user.id, game_id=game1.id).first()
+        missed_pick = Pick.query.filter_by(user_id=user.id, game_id=game2.id).first()
+        self.assertEqual(scored_pick.points, 2)
+        self.assertEqual(missed_pick.points, 0)
 
 
 class AuthAndHomeRouteTests(BaseTestCase):
@@ -382,6 +462,27 @@ class AdminRouteTests(BaseTestCase):
         response = self.client.get("/admin_submit_picks?round_id=999")
         self.assertEqual(response.status_code, 200)
         self.assertIn(first_open.name.encode("utf-8"), response.data)
+
+    def test_admin_sync_henrygd_requires_admin(self):
+        user = self.create_user("nate", is_admin=False)
+        self.login(user.username)
+        response = self.client.post("/admin_sync_henrygd", follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Access denied", response.data)
+
+    def test_admin_sync_henrygd_runs_sync_and_shows_summary(self):
+        admin = self.create_user("admin", is_admin=True)
+        round_obj = self.create_round("First Round (Round of 64)", closed=False, closed_for_selection=False)
+        self.login(admin.username)
+
+        with patch(
+            "app.sync_tournament_from_henrygd",
+            return_value={"winners_updated": 3, "rounds_closed": ["First Round (Round of 64)"], "rounds_created": ["Second Round (Round of 32)"]},
+        ):
+            response = self.client.post("/admin_sync_henrygd", data={"round_id": round_obj.id}, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"HenryGD sync complete: 3 winner(s) updated, 1 round(s) closed, 1 round(s) created.", response.data)
 
 
 class ViewAndLeaderboardRouteTests(BaseTestCase):
