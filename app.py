@@ -283,6 +283,9 @@ def get_last_sync():
         if total_minutes < 1:
             return 'just now'
         hours, minutes = divmod(total_minutes, 60)
+        days, hours = divmod(hours, 24)
+        if days > 0:
+            return f'{days}d {hours}h ago'
         if hours > 0:
             return f'{hours}h {minutes}m ago'
         return f'{minutes}m ago'
