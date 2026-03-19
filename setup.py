@@ -29,13 +29,14 @@ USERS = [
 ]
 
 GAMES = [
+    # Thursday, March 19
     ("Ohio State", "TCU"),
     ("Nebraska", "Troy"),
     ("Louisville", "South Florida"),
     ("Wisconsin", "High Point"),
     ("Duke", "Siena"),
     ("Vanderbilt", "McNeese"),
-    ("Michigan State", "N. Dakota St."),
+    ("Michigan State", "North Dakota State"),
     ("Arkansas", "Hawai'i"),
     ("North Carolina", "VCU"),
     ("Michigan", "Howard"),
@@ -45,6 +46,23 @@ GAMES = [
     ("Georgia", "Saint Louis"),
     ("Gonzaga", "Kennesaw State"),
     ("Houston", "Idaho"),
+    # Friday, March 20
+    ("Kentucky", "Santa Clara"),
+    ("Texas Tech", "Akron"),
+    ("Arizona", "Long Island University"),
+    ("Virginia", "Wright State"),
+    ("Iowa State", "Tennessee State"),
+    ("Alabama", "Hofstra"),
+    ("Villanova", "Utah State"),
+    ("Tennessee", "Miami (Ohio)"),
+    ("Clemson", "Iowa"),
+    ("St. John's", "UNI"),
+    ("UCLA", "UCF"),
+    ("Purdue", "Queens"),
+    ("Florida", "Prairie View A&M"),
+    ("Kansas", "Cal Baptist"),
+    ("UConn", "Furman"),
+    ("Miami (Fla.)", "Missouri"),
 ]
 
 
