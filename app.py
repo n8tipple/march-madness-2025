@@ -13,6 +13,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, curren
 from flask_bcrypt import Bcrypt
 import logging
 import time
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from sqlalchemy.dialects import registry as sqlalchemy_registry
 from sqlalchemy.engine import make_url
@@ -256,7 +257,25 @@ class Pick(db.Model):
     user = db.relationship('User', backref='picks')
     game = db.relationship('Game', back_populates='picks')
 
+class AppSetting(db.Model):
+    __tablename__ = 'app_setting'
+    key = db.Column(db.String(50), primary_key=True)
+    value = db.Column(db.Text, nullable=False)
+
 # Helper Functions
+def _save_last_sync():
+    now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+    setting = AppSetting.query.get('last_sync')
+    if setting:
+        setting.value = now
+    else:
+        db.session.add(AppSetting(key='last_sync', value=now))
+    db.session.commit()
+
+def get_last_sync():
+    setting = AppSetting.query.get('last_sync')
+    return setting.value if setting else None
+
 def parse_non_negative_int(value, default=0):
     try:
         return max(0, int(value))
@@ -861,7 +880,7 @@ def admin():
                 'has_picks': user_picks == len(games)
             })
 
-    return render_template('admin.html', all_rounds=all_rounds, selected_round=selected_round, prev_winners=prev_winners, users_with_picks=users_with_picks, is_chris=is_chris)
+    return render_template('admin.html', all_rounds=all_rounds, selected_round=selected_round, prev_winners=prev_winners, users_with_picks=users_with_picks, is_chris=is_chris, last_sync=get_last_sync())
 
 @app.route('/admin_sync_henrygd', methods=['POST'])
 @login_required
@@ -873,6 +892,7 @@ def admin_sync_henrygd():
     selected_round_id = request.form.get('round_id', type=int)
     try:
         summary = sync_tournament_from_henrygd()
+        _save_last_sync()
         success_message = (
             "Data sync complete: "
             f"{summary['winners_updated']} winner(s) updated, "
@@ -893,6 +913,7 @@ def admin_sync_henrygd():
 def sync_results():
     try:
         summary = sync_tournament_from_henrygd()
+        _save_last_sync()
         success_message = (
             "Data sync complete: "
             f"{summary['winners_updated']} winner(s) updated, "
@@ -995,6 +1016,7 @@ def leaderboard():
         ranks=ranks,
         closed_rounds=closed_rounds,
         leaderboard_picks=leaderboard_picks,
+        last_sync=get_last_sync(),
     )
 
 if __name__ == '__main__':
