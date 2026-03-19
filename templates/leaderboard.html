@@ -24,9 +24,11 @@
     {% else %}
     {% for user in users %}
     {% set fill_pct = ((user.points if user.points > 0 else 0) / max_points * 100)|float %}
+    {% set user_rank = ranks[loop.index0] %}
+    {% set tied = (loop.index0 > 0 and ranks[loop.index0] == ranks[loop.index0 - 1]) or (loop.index0 < users|length - 1 and ranks[loop.index0] == ranks[loop.index0 + 1]) %}
     <div class="leaderboard-item mb-2 p-2 p-md-3 rounded">
         <div class="leader-row">
-            <div class="rank-badge">#{{ loop.index }}</div>
+            <div class="rank-badge{% if tied %} rank-tied{% endif %}">{% if tied %}T{% endif %}#{{ user_rank }}</div>
             <img src="{{ url_for('static', filename=user.picture) }}" class="leader-photo"
                  data-bs-toggle="modal" data-bs-target="#picModal{{ user.id }}" alt="{{ user.username }} picture">
             <div class="leader-main">
@@ -169,6 +171,12 @@
         border-radius: 999px;
         padding: 0.16rem 0.5rem;
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+    }
+
+    .rank-tied {
+        background: linear-gradient(125deg, #d4e6f9 0%, #b8d4f0 100%);
+        border-color: #8bb5d9;
+        color: #1a3a5c;
     }
 
     .leader-photo {
