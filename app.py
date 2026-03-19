@@ -274,6 +274,18 @@ def _save_last_sync():
         db.session.add(AppSetting(key='last_sync', value=now))
     db.session.commit()
 
+SYNC_COOLDOWN_SECONDS = 300  # 5 minutes
+
+def _sync_on_cooldown():
+    setting = AppSetting.query.get('last_sync')
+    if not setting:
+        return False
+    try:
+        synced_at = datetime.fromisoformat(setting.value)
+        return (datetime.now(timezone.utc) - synced_at).total_seconds() < SYNC_COOLDOWN_SECONDS
+    except (ValueError, TypeError):
+        return False
+
 def get_last_sync():
     setting = AppSetting.query.get('last_sync')
     if not setting:
@@ -908,19 +920,22 @@ def admin_sync_henrygd():
         return redirect(url_for('home'))
 
     selected_round_id = request.form.get('round_id', type=int)
-    try:
-        summary = sync_tournament_from_henrygd()
-        _save_last_sync()
-        success_message = (
-            "Data sync complete: "
-            f"{summary['winners_updated']} winner(s) updated, "
-            f"{len(summary['rounds_created'])} round(s) created. "
-            "Round saved."
-        )
-        flash(success_message, 'success')
-    except Exception as exc:
-        logger.exception("HenryGD sync failed")
-        flash(f'HenryGD sync failed: {exc}', 'danger')
+    if _sync_on_cooldown():
+        flash('Sync is on cooldown. Please wait 5 minutes between syncs.', 'warning')
+    else:
+        try:
+            summary = sync_tournament_from_henrygd()
+            _save_last_sync()
+            success_message = (
+                "Data sync complete: "
+                f"{summary['winners_updated']} winner(s) updated, "
+                f"{len(summary['rounds_created'])} round(s) created. "
+                "Round saved."
+            )
+            flash(success_message, 'success')
+        except Exception as exc:
+            logger.exception("HenryGD sync failed")
+            flash(f'HenryGD sync failed: {exc}', 'danger')
 
     if selected_round_id:
         return redirect(url_for('admin', round_id=selected_round_id))
@@ -929,19 +944,22 @@ def admin_sync_henrygd():
 @app.route('/sync_results', methods=['POST'])
 @login_required
 def sync_results():
-    try:
-        summary = sync_tournament_from_henrygd()
-        _save_last_sync()
-        success_message = (
-            "Data sync complete: "
-            f"{summary['winners_updated']} winner(s) updated, "
-            f"{len(summary['rounds_created'])} round(s) created. "
-            "Round saved."
-        )
-        flash(success_message, 'success')
-    except Exception as exc:
-        logger.exception("Sync failed")
-        flash(f'Sync failed: {exc}', 'danger')
+    if _sync_on_cooldown():
+        flash('Sync is on cooldown. Please wait 5 minutes between syncs.', 'warning')
+    else:
+        try:
+            summary = sync_tournament_from_henrygd()
+            _save_last_sync()
+            success_message = (
+                "Data sync complete: "
+                f"{summary['winners_updated']} winner(s) updated, "
+                f"{len(summary['rounds_created'])} round(s) created. "
+                "Round saved."
+            )
+            flash(success_message, 'success')
+        except Exception as exc:
+            logger.exception("Sync failed")
+            flash(f'Sync failed: {exc}', 'danger')
     return redirect(url_for('leaderboard'))
 
 @app.route('/admin_submit_picks', methods=['GET', 'POST'])
