@@ -482,9 +482,9 @@ def sync_tournament_from_henrygd(payload=None):
         if winners_updated:
             db.session.commit()
 
-        if round_obj.games and all(game.winner for game in round_obj.games):
-            calculate_points(round_obj)
+        calculate_points(round_obj)
 
+        if round_obj.games and all(game.winner for game in round_obj.games):
             has_next_round = round_name != TOURNAMENT_ROUND_NAMES[-1]
             if has_next_round and len(round_obj.games) >= 2:
                 next_round_name = TOURNAMENT_ROUND_NAMES[index + 1]
