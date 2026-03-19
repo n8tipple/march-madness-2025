@@ -888,6 +888,23 @@ def admin_sync_henrygd():
         return redirect(url_for('admin', round_id=selected_round_id))
     return redirect(url_for('admin'))
 
+@app.route('/sync_results', methods=['POST'])
+@login_required
+def sync_results():
+    try:
+        summary = sync_tournament_from_henrygd()
+        success_message = (
+            "Data sync complete: "
+            f"{summary['winners_updated']} winner(s) updated, "
+            f"{len(summary['rounds_created'])} round(s) created. "
+            "Round saved."
+        )
+        flash(success_message, 'success')
+    except Exception as exc:
+        logger.exception("Sync failed")
+        flash(f'Sync failed: {exc}', 'danger')
+    return redirect(url_for('leaderboard'))
+
 @app.route('/admin_submit_picks', methods=['GET', 'POST'])
 @login_required
 def admin_submit_picks():

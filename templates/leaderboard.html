@@ -1,8 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-header">
-    <h2 class="page-title">Leaderboard</h2>
-    <p class="page-subtitle">Tap a photo for details.</p>
+<div class="page-header d-flex align-items-start justify-content-between">
+    <div>
+        <h2 class="page-title">Leaderboard</h2>
+        <p class="page-subtitle">Tap a photo for details.</p>
+    </div>
+    {% if current_user.is_authenticated %}
+    <form method="POST" action="{{ url_for('sync_results') }}">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Sync NCAA Results</button>
+    </form>
+    {% endif %}
 </div>
 
 {% set max_points = users|map(attribute='points')|max if users else 1 %}
