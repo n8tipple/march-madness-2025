@@ -149,7 +149,7 @@ if not is_supported_url:
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_class': NullPool}
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'poolclass': NullPool}
 
 # Set up logging
 log_level_name = env_value('LOG_LEVEL', 'INFO').upper()
