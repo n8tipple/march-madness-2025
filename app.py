@@ -875,7 +875,6 @@ def admin_sync_henrygd():
         success_message = (
             "HenryGD sync complete: "
             f"{summary['winners_updated']} winner(s) updated, "
-            f"{len(summary['rounds_closed'])} round(s) closed, "
             f"{len(summary['rounds_created'])} round(s) created."
         )
         flash(success_message, 'success')
