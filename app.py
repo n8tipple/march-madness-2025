@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from sqlalchemy.dialects import registry as sqlalchemy_registry
 from sqlalchemy.engine import make_url
+from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import joinedload
 from werkzeug.exceptions import HTTPException
 try:
@@ -148,6 +149,7 @@ if not is_supported_url:
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_class': NullPool}
 
 # Set up logging
 log_level_name = env_value('LOG_LEVEL', 'INFO').upper()
