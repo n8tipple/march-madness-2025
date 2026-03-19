@@ -265,10 +265,7 @@ class AppSetting(db.Model):
 
 # Helper Functions
 def _save_last_sync():
-    denver = ZoneInfo('America/Denver')
-    now_denver = datetime.now(denver)
-    tz_abbr = now_denver.strftime('%Z')
-    now = now_denver.strftime(f'%m/%d/%y %I:%M %p {tz_abbr}')
+    now = datetime.now(timezone.utc).isoformat()
     setting = AppSetting.query.get('last_sync')
     if setting:
         setting.value = now
@@ -278,7 +275,20 @@ def _save_last_sync():
 
 def get_last_sync():
     setting = AppSetting.query.get('last_sync')
-    return setting.value if setting else None
+    if not setting:
+        return None
+    try:
+        synced_at = datetime.fromisoformat(setting.value)
+        delta = datetime.now(timezone.utc) - synced_at
+        total_minutes = int(delta.total_seconds() // 60)
+        if total_minutes < 1:
+            return 'just now'
+        hours, minutes = divmod(total_minutes, 60)
+        if hours > 0:
+            return f'{hours}h {minutes}m ago'
+        return f'{minutes}m ago'
+    except (ValueError, TypeError):
+        return setting.value
 
 def parse_non_negative_int(value, default=0):
     try:
