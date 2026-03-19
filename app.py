@@ -872,7 +872,12 @@ def admin_sync_henrygd():
     selected_round_id = request.form.get('round_id', type=int)
     try:
         summary = sync_tournament_from_henrygd()
-        success_message = "Data sync complete."
+        success_message = (
+            "Data sync complete: "
+            f"{summary['winners_updated']} winner(s) updated, "
+            f"{len(summary['rounds_created'])} round(s) created. "
+            "Round saved."
+        )
         flash(success_message, 'success')
     except Exception as exc:
         logger.exception("HenryGD sync failed")
