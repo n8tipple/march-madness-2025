@@ -288,6 +288,8 @@ def normalize_team_name(name):
         'saint marys ca': 'saint marys',
         'saint peters': 'saint peters',
         'st peters': 'saint peters',
+        'queens n c': 'queens',
+        'miami fl': 'miami fla',
     }
     return alias_map.get(canonical, canonical)
 
