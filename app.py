@@ -274,15 +274,17 @@ def _save_last_sync():
         db.session.add(AppSetting(key='last_sync', value=now))
     db.session.commit()
 
-SYNC_COOLDOWN_SECONDS = 600  # 10 minutes
+SYNC_COOLDOWN_ADMIN = 120    # 2 minutes
+SYNC_COOLDOWN_DEFAULT = 600  # 10 minutes
 
-def _sync_on_cooldown():
+def _sync_on_cooldown(is_admin=False):
     setting = AppSetting.query.get('last_sync')
     if not setting:
         return False
     try:
+        cooldown = SYNC_COOLDOWN_ADMIN if is_admin else SYNC_COOLDOWN_DEFAULT
         synced_at = datetime.fromisoformat(setting.value)
-        return (datetime.now(timezone.utc) - synced_at).total_seconds() < SYNC_COOLDOWN_SECONDS
+        return (datetime.now(timezone.utc) - synced_at).total_seconds() < cooldown
     except (ValueError, TypeError):
         return False
 
@@ -920,8 +922,8 @@ def admin_sync_henrygd():
         return redirect(url_for('home'))
 
     selected_round_id = request.form.get('round_id', type=int)
-    if _sync_on_cooldown():
-        flash('Sync is on cooldown. Please wait 10 minutes between syncs.', 'warning')
+    if _sync_on_cooldown(is_admin=True):
+        flash('Sync is on cooldown. Please wait 2 minutes between syncs.', 'warning')
     else:
         try:
             summary = sync_tournament_from_henrygd()
