@@ -16,8 +16,7 @@ except ImportError:
 TOURNAMENT_YEAR = 2026
 
 USERS = [
-    ('June', 'jump27', False, 'Jump Shot June', 'june.png'),
-    ('Don', 'shot28', False, 'Downtown Don', 'don.png'),
+    ('donjune', 'jump27', False, 'The Don of a New June', 'don_june.png'),
     ('Nate', 'pass57', True, 'Net Rippin’ Nate', 'nate.png'),
     ('Chris', 'pass18', True, 'Clutch Chris', 'chris.png'),
     ('Casey', 'bball32', True, 'Coast-to-Coast Casey', 'casey.png'),
@@ -27,42 +26,25 @@ USERS = [
     ('Sherry', 'swish48', False, 'Sharp Shooter Sherry', 'sherry.png'),
     ('Tyler', 'hoop23', False, 'Triple Threat Tyler', 'tyler.png'),
     ('Meiko', 'slam96', False, 'Money Meiko', 'meiko.png'),
-    ('Sid', 'ball71', False, 'Sixth Man Sid', 'sid.png')
 ]
 
 GAMES = [
-    ("UConn", "Stetson"),
-    ("Northwestern", "Florida Atlantic"),
-    ("San Diego State", "UAB"),
-    ("Yale", "Auburn"),
-    ("Duquesne", "BYU"),
-    ("Illinois", "Morehead State"),
-    ("Washington State", "Drake"),
-    ("Iowa State", "South Dakota State"),
-    ("North Carolina", "Wagner"),
-    ("Michigan State", "Mississippi State"),
-    ("Grand Canyon", "Saint Mary's"),
-    ("Alabama", "Charleston"),
-    ("Clemson", "New Mexico"),
-    ("Baylor", "Colgate"),
-    ("Dayton", "Nevada"),
-    ("Arizona", "Long Beach State"),
-    ("Houston", "Longwood"),
-    ("Texas A&M", "Nebraska"),
-    ("James Madison", "Wisconsin"),
-    ("Duke", "Vermont"),
-    ("NC State", "Texas Tech"),
-    ("Oakland", "Kentucky"),
-    ("Colorado", "Florida"),
-    ("Marquette", "Western Kentucky"),
-    ("Purdue", "Grambling State"),
-    ("Utah State", "TCU"),
-    ("Gonzaga", "McNeese"),
-    ("Kansas", "Samford"),
-    ("Oregon", "South Carolina"),
-    ("Creighton", "Akron"),
-    ("Texas", "Colorado State"),
-    ("Tennessee", "Saint Peter's")
+    ("Ohio State", "TCU"),
+    ("Nebraska", "Troy"),
+    ("Louisville", "South Florida"),
+    ("Wisconsin", "High Point"),
+    ("Duke", "Siena"),
+    ("Vanderbilt", "McNeese"),
+    ("Michigan State", "N. Dakota St."),
+    ("Arkansas", "Hawai'i"),
+    ("North Carolina", "VCU"),
+    ("Michigan", "Howard"),
+    ("BYU", "Texas"),
+    ("Saint Mary's", "Texas A&M"),
+    ("Illinois", "Penn"),
+    ("Georgia", "Saint Louis"),
+    ("Gonzaga", "Kennesaw State"),
+    ("Houston", "Idaho"),
 ]
 
 
