@@ -469,11 +469,7 @@ def sync_tournament_from_henrygd(payload=None):
         if not round_obj and index > 0:
             prev_round_name = TOURNAMENT_ROUND_NAMES[index - 1]
             prev_round = rounds_by_name.get(prev_round_name)
-            if prev_round and len(prev_round.games) >= 2 and all(game.winner for game in prev_round.games):
-                if not prev_round.closed:
-                    prev_round.closed = True
-                    prev_round.closed_for_selection = True
-                    db.session.commit()
+            if prev_round and prev_round.closed and len(prev_round.games) >= 2 and all(game.winner for game in prev_round.games):
                 calculate_points(prev_round)
                 round_obj = create_next_round(prev_round)
                 rounds_by_name[round_obj.name] = round_obj
@@ -487,11 +483,6 @@ def sync_tournament_from_henrygd(payload=None):
             db.session.commit()
 
         if round_obj.games and all(game.winner for game in round_obj.games):
-            if not round_obj.closed:
-                round_obj.closed = True
-                round_obj.closed_for_selection = True
-                db.session.commit()
-                summary['rounds_closed'].append(round_name)
             calculate_points(round_obj)
 
             has_next_round = round_name != TOURNAMENT_ROUND_NAMES[-1]
