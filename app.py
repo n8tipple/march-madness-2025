@@ -541,7 +541,7 @@ def get_users_with_points():
     for user, total_points in users_with_points:
         user.points = total_points or 0
         users.append(user)
-    return sorted(users, key=lambda u: u.points, reverse=True)
+    return sorted(users, key=lambda u: (-u.points, u.fun_name.lower()))
 
 
 def build_leaderboard_pick_data(users):
@@ -627,13 +627,14 @@ def home():
 @login_required
 def dashboard():
     users = get_users_with_points()
+    winners = []
+    losers = []
     if users and users[0].points != users[-1].points:
-        winner = users[0]
-        loser = users[-1]
-    else:
-        winner = None
-        loser = None
-    return render_template('dashboard.html', winner=winner, loser=loser)
+        top_pts = users[0].points
+        bot_pts = users[-1].points
+        winners = [u for u in users if u.points == top_pts]
+        losers = [u for u in users if u.points == bot_pts]
+    return render_template('dashboard.html', winners=winners, losers=losers)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -964,10 +965,17 @@ def admin_submit_picks():
 @app.route('/leaderboard')
 def leaderboard():
     users = get_users_with_points()
+    ranks = []
+    for i, user in enumerate(users):
+        if i == 0 or user.points != users[i - 1].points:
+            ranks.append(i + 1)
+        else:
+            ranks.append(ranks[-1])
     closed_rounds, leaderboard_picks = build_leaderboard_pick_data(users)
     return render_template(
         'leaderboard.html',
         users=users,
+        ranks=ranks,
         closed_rounds=closed_rounds,
         leaderboard_picks=leaderboard_picks,
     )
