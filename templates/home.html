@@ -134,9 +134,9 @@
         </div>
         <div class="court-mode-toggle-wrap">
             <div class="court-mode-segmented" id="courtModeSegmented" role="group" aria-label="Warmup mode">
-                <button type="button" class="mode-segment" data-mode="noob">Noob</button>
+                <button type="button" class="mode-segment is-active" data-mode="noob">Noob</button>
                 <button type="button" class="mode-segment" data-mode="novice">Novice</button>
-                <button type="button" class="mode-segment is-active" data-mode="pro">Pro</button>
+                <button type="button" class="mode-segment" data-mode="pro">Pro</button>
             </div>
         </div>
         <div class="pro-release-line" id="proReleaseLine" aria-hidden="true"></div>
@@ -670,8 +670,9 @@
         let backboardBounds = null;
         let rimCaps = [];
         let noviceLineY = bounds.height * 0.38;
-        let proLineY = bounds.height * 0.5;
+        let proLineY = bounds.height * 0.55;
         let mode = null;
+        let initialLoad = true;
         let memeTimeout = null;
 
         let dragging = false;
@@ -771,7 +772,7 @@
             score = 0;
             scoreCooldown = 0;
             applyModeClasses();
-            if (mode === 'noob') {
+            if (mode === 'noob' && !initialLoad) {
                 playNoobMeme();
             } else {
                 stopNoobMeme();
@@ -806,9 +807,9 @@
                 const centerY = rect.top - courtRect.top + rect.height / 2;
                 noviceLineY = Math.max(radius + 10, (rect.top - courtRect.top) - 6);
                 if (rimBounds) {
-                    proLineY = Math.max(noviceLineY + 14, rimBounds.top + ((rimBounds.bottom - rimBounds.top) * 0.5));
+                    proLineY = Math.max(noviceLineY + 22, rimBounds.top + ((rimBounds.bottom - rimBounds.top) * 0.7));
                 } else {
-                    proLineY = noviceLineY + 32;
+                    proLineY = noviceLineY + 42;
                 }
                 if (proReleaseLine && mode !== 'noob') {
                     proReleaseLine.style.top = `${getCurrentLineY()}px`;
@@ -819,7 +820,7 @@
                 ];
             } else if (proReleaseLine) {
                 noviceLineY = bounds.height * 0.38;
-                proLineY = bounds.height * 0.5;
+                proLineY = bounds.height * 0.55;
                 if (mode !== 'noob') {
                     proReleaseLine.style.top = `${getCurrentLineY()}px`;
                 }
@@ -1058,7 +1059,8 @@
 
         window.addEventListener('resize', refreshBounds);
         updateCourtFeatures();
-        setMode('pro');
+        setMode('noob');
+        initialLoad = false;
         renderScore();
         setBallPosition();
         requestAnimationFrame(animate);
