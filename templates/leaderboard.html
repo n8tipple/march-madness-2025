@@ -1,13 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-header d-flex align-items-start justify-content-between">
+<div class="page-header leaderboard-header">
     <div>
         <h2 class="page-title">Leaderboard</h2>
         <p class="page-subtitle">Tap a photo for details.</p>
     </div>
     {% if current_user.is_authenticated %}
-    <form method="POST" action="{{ url_for('sync_results') }}">
+    <form method="POST" action="{{ url_for('sync_results') }}" class="sync-form text-end">
         <button type="submit" class="btn btn-outline-primary btn-sm">Sync NCAA Results</button>
+        {% if last_sync %}
+        <div class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem;">Last synced: {{ last_sync }}</div>
+        {% endif %}
     </form>
     {% endif %}
 </div>
@@ -140,6 +143,29 @@
 </div>
 
 <style>
+    .leaderboard-header {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sync-form {
+        text-align: left;
+        margin-top: 0.25rem;
+    }
+
+    @media (min-width: 768px) {
+        .leaderboard-header {
+            flex-direction: row;
+            align-items: start;
+            justify-content: space-between;
+        }
+
+        .sync-form {
+            text-align: right;
+            margin-top: 0;
+        }
+    }
+
     .leaderboard {
         display: grid;
         gap: 0.62rem;

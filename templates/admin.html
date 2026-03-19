@@ -29,6 +29,9 @@
                     <input type="hidden" name="round_id" value="{{ selected_round.id }}">
                 {% endif %}
                 <button type="submit" class="btn btn-outline-primary w-100">Sync NCAA Results</button>
+                {% if last_sync %}
+                <div class="text-muted text-center" style="font-size: 0.7rem; margin-top: 0.2rem;">Last synced: {{ last_sync }}</div>
+                {% endif %}
             </form>
         </div>
     </div>
