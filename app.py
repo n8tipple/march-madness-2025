@@ -274,7 +274,7 @@ def _save_last_sync():
         db.session.add(AppSetting(key='last_sync', value=now))
     db.session.commit()
 
-SYNC_COOLDOWN_SECONDS = 300  # 5 minutes
+SYNC_COOLDOWN_SECONDS = 600  # 10 minutes
 
 def _sync_on_cooldown():
     setting = AppSetting.query.get('last_sync')
@@ -921,7 +921,7 @@ def admin_sync_henrygd():
 
     selected_round_id = request.form.get('round_id', type=int)
     if _sync_on_cooldown():
-        flash('Sync is on cooldown. Please wait 5 minutes between syncs.', 'warning')
+        flash('Sync is on cooldown. Please wait 10 minutes between syncs.', 'warning')
     else:
         try:
             summary = sync_tournament_from_henrygd()
@@ -945,7 +945,7 @@ def admin_sync_henrygd():
 @login_required
 def sync_results():
     if _sync_on_cooldown():
-        flash('Sync is on cooldown. Please wait 5 minutes between syncs.', 'warning')
+        flash('Sync is on cooldown. Please wait 10 minutes between syncs.', 'warning')
     else:
         try:
             summary = sync_tournament_from_henrygd()
