@@ -13,7 +13,8 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, curren
 from flask_bcrypt import Bcrypt
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from sqlalchemy.dialects import registry as sqlalchemy_registry
 from sqlalchemy.engine import make_url
@@ -264,7 +265,10 @@ class AppSetting(db.Model):
 
 # Helper Functions
 def _save_last_sync():
-    now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+    denver = ZoneInfo('America/Denver')
+    now_denver = datetime.now(denver)
+    tz_abbr = now_denver.strftime('%Z')
+    now = now_denver.strftime(f'%m/%d/%y %I:%M %p {tz_abbr}')
     setting = AppSetting.query.get('last_sync')
     if setting:
         setting.value = now
