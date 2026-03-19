@@ -25,7 +25,7 @@
     {% for user in users %}
     {% set fill_pct = ((user.points if user.points > 0 else 0) / max_points * 100)|float %}
     {% set user_rank = ranks[loop.index0] %}
-    {% set tied = (loop.index0 > 0 and ranks[loop.index0] == ranks[loop.index0 - 1]) or (loop.index0 < users|length - 1 and ranks[loop.index0] == ranks[loop.index0 + 1]) %}
+    {% set tied = user.points > 0 and ((loop.index0 > 0 and ranks[loop.index0] == ranks[loop.index0 - 1]) or (loop.index0 < users|length - 1 and ranks[loop.index0] == ranks[loop.index0 + 1])) %}
     <div class="leaderboard-item mb-2 p-2 p-md-3 rounded">
         <div class="leader-row">
             <div class="rank-badge{% if tied %} rank-tied{% endif %}">{% if tied %}T{% endif %}#{{ user_rank }}</div>
