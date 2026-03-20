@@ -464,6 +464,42 @@
             padding: 0.32rem 0;
         }
 
+        .basketball-bounce {
+            display: inline-block;
+            width: 36px;
+            height: 36px;
+            animation: bbBounce 0.5s cubic-bezier(0.3, 0, 0.7, 1) infinite alternate;
+        }
+
+        .basketball-bounce svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        @keyframes bbBounce {
+            0% {
+                transform: translateY(0) scaleX(1) scaleY(1);
+            }
+            100% {
+                transform: translateY(-28px) scaleX(1) scaleY(1);
+            }
+        }
+
+        .basketball-shadow {
+            display: block;
+            margin: 2px auto 0;
+            width: 24px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.15);
+            animation: bbShadow 0.5s cubic-bezier(0.3, 0, 0.7, 1) infinite alternate;
+        }
+
+        @keyframes bbShadow {
+            0% { transform: scaleX(1); opacity: 0.3; }
+            100% { transform: scaleX(0.5); opacity: 0.1; }
+        }
+
         @keyframes alertIn {
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: translateY(0); }
@@ -580,9 +616,17 @@
 
     <main class="app-shell">
         <div id="loading-indicator" class="d-none text-center my-2" aria-live="polite">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
+            <div class="basketball-bounce">
+                <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="32" cy="32" r="30" fill="#e87121" stroke="#333" stroke-width="2"/>
+                    <path d="M32 2 C32 62 32 62 32 62" stroke="#333" stroke-width="1.5" fill="none"/>
+                    <path d="M2 32 C62 32 62 32 62 32" stroke="#333" stroke-width="1.5" fill="none"/>
+                    <path d="M7 12 C24 20 40 20 57 12" stroke="#333" stroke-width="1.5" fill="none"/>
+                    <path d="M7 52 C24 44 40 44 57 52" stroke="#333" stroke-width="1.5" fill="none"/>
+                </svg>
             </div>
+            <span class="basketball-shadow"></span>
+            <span class="visually-hidden">Loading...</span>
         </div>
 
         <div class="alert-stack">
