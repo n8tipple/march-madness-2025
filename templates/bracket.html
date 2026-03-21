@@ -119,13 +119,6 @@
         font-weight: 400;
     }
 
-    .bracket-team-logo {
-        width: 18px;
-        height: 18px;
-        object-fit: contain;
-        flex-shrink: 0;
-    }
-
     .bracket-seed {
         color: #8a99ab;
         font-size: 0.68rem;
@@ -259,11 +252,9 @@
         const info = getTeamInfo(name);
         const isWinner = team.isWinner;
         const seed = team.seed || (info.seed) || '';
-        const logo = info.logo || team.logoUrl || '';
         const score = team.score;
 
         let html = '<div class="bracket-team' + (isWinner ? ' winner' : '') + (name === 'TBD' ? ' tbd' : '') + '">';
-        if (logo) html += '<img src="' + logo + '" class="bracket-team-logo" alt="">';
         if (seed) html += '<span class="bracket-seed">(' + seed + ')</span>';
         html += '<span class="bracket-team-name">' + name + '</span>';
         if (score != null && score !== '') html += '<span class="bracket-score">' + score + '</span>';

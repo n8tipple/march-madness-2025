@@ -24,15 +24,25 @@
             </select>
         </div>
         <div class="col-12 col-md-4 d-flex align-items-end">
-            <form method="POST" action="{{ url_for('admin_sync_henrygd') }}" class="w-100">
-                {% if selected_round %}
-                    <input type="hidden" name="round_id" value="{{ selected_round.id }}">
-                {% endif %}
+            <div class="sync-actions w-100">
                 {% if last_sync %}
-                <div class="text-muted text-center" style="font-size: 0.7rem; margin-bottom: 0.3rem;">Last synced: {{ last_sync }}</div>
+                <div class="text-muted text-center sync-status">Last synced: {{ last_sync }}</div>
                 {% endif %}
-                <button type="submit" class="btn btn-outline-primary w-100">Sync NCAA Results</button>
-            </form>
+                <div class="sync-actions-grid">
+                    <form method="POST" action="{{ url_for('admin_sync_henrygd') }}" class="sync-action-form">
+                        {% if selected_round %}
+                            <input type="hidden" name="round_id" value="{{ selected_round.id }}">
+                        {% endif %}
+                        <button type="submit" class="btn btn-outline-primary w-100">Sync Winners</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin_sync_matchups') }}" class="sync-action-form">
+                        {% if selected_round %}
+                            <input type="hidden" name="round_id" value="{{ selected_round.id }}">
+                        {% endif %}
+                        <button type="submit" class="btn btn-outline-secondary w-100">Sync Matchup For New Round</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -197,6 +207,16 @@
             letter-spacing: 0.06em;
         }
 
+        .sync-status {
+            font-size: 0.7rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .sync-actions-grid {
+            display: grid;
+            gap: 0.65rem;
+        }
+
         .winner-table > :not(caption) > * > * {
             padding: 0.52rem 0.44rem;
         }
@@ -244,6 +264,10 @@
         }
 
         @media (min-width: 768px) {
+            .sync-actions-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
             .winner-table > :not(caption) > * > * {
                 padding: 0.68rem 0.72rem;
             }

@@ -99,25 +99,23 @@
                                                     {% for row in round_data.rows %}
                                                     <tr class="{{ 'table-success' if row.result_key == 'win' else 'table-danger' if row.result_key == 'loss' else '' }}">
                                                         <td>
-                                                            {% set logo1 = team_logo(row.team1, team_info) %}
-                                                            {% set logo2 = team_logo(row.team2, team_info) %}
                                                             {% if row.picked_team == row.team1 %}
                                                                 <div class="game-matchup">
-                                                                    <span class="team-with-logo"><strong>{% if logo1 %}<img src="{{ logo1 }}" class="team-logo" alt="">{% endif %}{{ team_seed(row.team1, team_info) }}{{ row.team1 }}</strong></span>
+                                                                    <span class="team-with-logo"><strong>{{ team_seed(row.team1, team_info) }}{{ row.team1 }}</strong></span>
                                                                     <span class="vs-text">vs</span>
-                                                                    <span class="team-with-logo">{% if logo2 %}<img src="{{ logo2 }}" class="team-logo" alt="">{% endif %}{{ team_seed(row.team2, team_info) }}{{ row.team2 }}</span>
+                                                                    <span class="team-with-logo">{{ team_seed(row.team2, team_info) }}{{ row.team2 }}</span>
                                                                 </div>
                                                             {% elif row.picked_team == row.team2 %}
                                                                 <div class="game-matchup">
-                                                                    <span class="team-with-logo">{% if logo1 %}<img src="{{ logo1 }}" class="team-logo" alt="">{% endif %}{{ team_seed(row.team1, team_info) }}{{ row.team1 }}</span>
+                                                                    <span class="team-with-logo">{{ team_seed(row.team1, team_info) }}{{ row.team1 }}</span>
                                                                     <span class="vs-text">vs</span>
-                                                                    <span class="team-with-logo"><strong>{% if logo2 %}<img src="{{ logo2 }}" class="team-logo" alt="">{% endif %}{{ team_seed(row.team2, team_info) }}{{ row.team2 }}</strong></span>
+                                                                    <span class="team-with-logo"><strong>{{ team_seed(row.team2, team_info) }}{{ row.team2 }}</strong></span>
                                                                 </div>
                                                             {% else %}
                                                                 <div class="game-matchup">
-                                                                    <span class="team-with-logo">{% if logo1 %}<img src="{{ logo1 }}" class="team-logo" alt="">{% endif %}{{ team_seed(row.team1, team_info) }}{{ row.team1 }}</span>
+                                                                    <span class="team-with-logo">{{ team_seed(row.team1, team_info) }}{{ row.team1 }}</span>
                                                                     <span class="vs-text">vs</span>
-                                                                    <span class="team-with-logo">{% if logo2 %}<img src="{{ logo2 }}" class="team-logo" alt="">{% endif %}{{ team_seed(row.team2, team_info) }}{{ row.team2 }}</span>
+                                                                    <span class="team-with-logo">{{ team_seed(row.team2, team_info) }}{{ row.team2 }}</span>
                                                                 </div>
                                                             {% endif %}
                                                         </td>
@@ -357,14 +355,6 @@
 
     .leader-modal-table-wrap td {
         font-size: 0.82rem;
-    }
-
-    .team-logo {
-        width: 18px;
-        height: 18px;
-        object-fit: contain;
-        vertical-align: middle;
-        margin-right: 0.2rem;
     }
 
     .game-matchup {

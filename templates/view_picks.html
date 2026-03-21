@@ -65,12 +65,10 @@
             {% for game in games_by_round[round.id] %}
             {% set game_row = loop.index + 2 %}
             <div class="grid-game sticky-left" style="grid-row: {{ game_row }}; grid-column: 1; min-height: 40px;">
-                {% set logo1 = team_logo(game.team1, team_info) %}
-                {% set logo2 = team_logo(game.team2, team_info) %}
                 <span class="game-matchup-compact">
-                    {% if logo1 %}<img src="{{ logo1 }}" class="team-logo-sm" alt="">{% endif %}{{ team_seed(game.team1, team_info) }}{{ game.team1 }}
+                    {{ team_seed(game.team1, team_info) }}{{ game.team1 }}
                     <span class="vs-sm">vs</span>
-                    {% if logo2 %}<img src="{{ logo2 }}" class="team-logo-sm" alt="">{% endif %}{{ team_seed(game.team2, team_info) }}{{ game.team2 }}
+                    {{ team_seed(game.team2, team_info) }}{{ game.team2 }}
                 </span>
             </div>
             {% for user, total in user_totals_by_round[round.id] %}
@@ -102,12 +100,8 @@
                 <div class="card mb-3 shadow-sm">
                     <div class="card-header bg-dark text-white">
                         <h5>
-                            {% set logo1 = team_logo(game.team1, team_info) %}
-                            {% set logo2 = team_logo(game.team2, team_info) %}
-                            {% if logo1 %}<img src="{{ logo1 }}" class="team-logo-header" alt="">{% endif %}
                             {{ team_seed(game.team1, team_info) }}{{ game.team1 }}
                             <span style="opacity: 0.6; font-size: 0.8em;">vs</span>
-                            {% if logo2 %}<img src="{{ logo2 }}" class="team-logo-header" alt="">{% endif %}
                             {{ team_seed(game.team2, team_info) }}{{ game.team2 }}
                         </h5>
                     </div>
@@ -127,8 +121,6 @@
                                     <tr class="{{ 'table-success' if pick.picked_team == game.winner else 'table-danger' if game.winner else '' }}">
                                         <td>{{ pick.user.username }}</td>
                                         <td>
-                                            {% set pick_logo = team_logo(pick.picked_team, team_info) %}
-                                            {% if pick_logo %}<img src="{{ pick_logo }}" class="team-logo-sm" alt="">{% endif %}
                                             {{ team_seed(pick.picked_team, team_info) }}{{ pick.picked_team }}
                                         </td>
                                         <td class="text-center points-column">
@@ -340,22 +332,6 @@
     .table-danger {
         background-color: rgba(198, 64, 75, 0.16) !important;
         color: #742932;
-    }
-
-    .team-logo-sm {
-        width: 16px;
-        height: 16px;
-        object-fit: contain;
-        vertical-align: middle;
-        margin-right: 0.15rem;
-    }
-
-    .team-logo-header {
-        width: 22px;
-        height: 22px;
-        object-fit: contain;
-        vertical-align: middle;
-        margin-right: 0.2rem;
     }
 
     .game-matchup-compact {
