@@ -186,13 +186,13 @@ class HelperTests(BaseTestCase):
             "championships": [
                 {
                     "games": [
-                        {"bracketPositionId": 0, "victorBracketPositionId": 1, "teams": [{"nameShort": "P", "isWinner": True}, {"nameShort": "Q", "isWinner": False}]},
-                        {"bracketPositionId": 1, "victorBracketPositionId": 2, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "B", "isWinner": False}]},
-                        {"bracketPositionId": 2, "victorBracketPositionId": 3, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "C", "isWinner": False}]},
-                        {"bracketPositionId": 3, "victorBracketPositionId": 4, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "D", "isWinner": False}]},
-                        {"bracketPositionId": 4, "victorBracketPositionId": 5, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "E", "isWinner": False}]},
-                        {"bracketPositionId": 5, "victorBracketPositionId": 6, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "F", "isWinner": False}]},
-                        {"bracketPositionId": 6, "victorBracketPositionId": None, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "G", "isWinner": False}]},
+                        {"bracketPositionId": 0, "victorBracketPositionId": 1, "startTimeEpoch": 100, "teams": [{"nameShort": "P", "isWinner": True}, {"nameShort": "Q", "isWinner": False}]},
+                        {"bracketPositionId": 1, "victorBracketPositionId": 2, "startTimeEpoch": 200, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "B", "isWinner": False}]},
+                        {"bracketPositionId": 2, "victorBracketPositionId": 3, "startTimeEpoch": 300, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "C", "isWinner": False}]},
+                        {"bracketPositionId": 3, "victorBracketPositionId": 4, "startTimeEpoch": 400, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "D", "isWinner": False}]},
+                        {"bracketPositionId": 4, "victorBracketPositionId": 5, "startTimeEpoch": 500, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "E", "isWinner": False}]},
+                        {"bracketPositionId": 5, "victorBracketPositionId": 6, "startTimeEpoch": 600, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "F", "isWinner": False}]},
+                        {"bracketPositionId": 6, "victorBracketPositionId": None, "startTimeEpoch": 700, "teams": [{"nameShort": "A", "isWinner": True}, {"nameShort": "G", "isWinner": False}]},
                     ]
                 }
             ]
@@ -207,6 +207,30 @@ class HelperTests(BaseTestCase):
         self.assertEqual(games_by_round["First Round (Round of 64)"][0]["team1"], "A")
         self.assertEqual(games_by_round["First Round (Round of 64)"][0]["winner"], "A")
         self.assertEqual(team_info["a"]["name"], "A")
+
+    def test_build_henrygd_games_by_round_sorts_rounds_by_tipoff_time(self):
+        payload = {
+            "championships": [
+                {
+                    "games": [
+                        {"bracketPositionId": 101, "victorBracketPositionId": 201, "startTimeEpoch": 300, "teams": [{"nameShort": "Late", "isWinner": False}, {"nameShort": "Later", "isWinner": False}]},
+                        {"bracketPositionId": 102, "victorBracketPositionId": 201, "startTimeEpoch": 100, "teams": [{"nameShort": "Early", "isWinner": False}, {"nameShort": "Soon", "isWinner": False}]},
+                        {"bracketPositionId": 201, "victorBracketPositionId": 301, "startTimeEpoch": 400, "teams": [{"nameShort": "Mid A", "isWinner": False}, {"nameShort": "Mid B", "isWinner": False}]},
+                        {"bracketPositionId": 301, "victorBracketPositionId": 401, "startTimeEpoch": 500, "teams": [{"nameShort": "QF A", "isWinner": False}, {"nameShort": "QF B", "isWinner": False}]},
+                        {"bracketPositionId": 401, "victorBracketPositionId": 501, "startTimeEpoch": 600, "teams": [{"nameShort": "SF A", "isWinner": False}, {"nameShort": "SF B", "isWinner": False}]},
+                        {"bracketPositionId": 501, "victorBracketPositionId": 601, "startTimeEpoch": 700, "teams": [{"nameShort": "FF A", "isWinner": False}, {"nameShort": "FF B", "isWinner": False}]},
+                        {"bracketPositionId": 601, "victorBracketPositionId": None, "startTimeEpoch": 800, "teams": [{"nameShort": "Final A", "isWinner": False}, {"nameShort": "Final B", "isWinner": False}]},
+                    ]
+                }
+            ]
+        }
+
+        games_by_round, _ = build_henrygd_games_by_round(payload)
+
+        self.assertEqual(
+            [(game["team1"], game["start_time_epoch"]) for game in games_by_round["First Round (Round of 64)"]],
+            [("Early", 100), ("Late", 300)],
+        )
 
     def test_sync_round_matchups_updates_existing_round_games(self):
         first_round = self.create_round("First Round (Round of 64)", closed=True, closed_for_selection=True)

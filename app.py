@@ -471,6 +471,7 @@ def build_henrygd_games_by_round(payload):
         games_by_round.setdefault(round_name, []).append(
             {
                 'position_id': position_id,
+                'start_time_epoch': game.get('startTimeEpoch'),
                 'team1': teams[0],
                 'team2': teams[1],
                 'winner': winner_name,
@@ -478,7 +479,13 @@ def build_henrygd_games_by_round(payload):
         )
 
     for round_games in games_by_round.values():
-        round_games.sort(key=lambda game: game['position_id'])
+        round_games.sort(
+            key=lambda game: (
+                game.get('start_time_epoch') is None,
+                game.get('start_time_epoch') or 0,
+                game['position_id'],
+            )
+        )
 
     return games_by_round, team_info
 
