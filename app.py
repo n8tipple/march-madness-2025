@@ -496,6 +496,14 @@ def resolve_winner_name_for_matchup(team1, team2, winner_name):
     return None
 
 
+def resolve_team_name_from_candidates(team_name, candidate_names):
+    team_key = normalize_team_name(team_name)
+    for candidate_name in candidate_names:
+        if team_key == normalize_team_name(candidate_name):
+            return candidate_name
+    return None
+
+
 def apply_henrygd_winners_to_round(round_obj, external_games):
     if not round_obj or not external_games:
         return 0
@@ -564,7 +572,7 @@ def sync_tournament_from_henrygd(payload=None):
             prev_round = rounds_by_name.get(prev_round_name)
             if prev_round and prev_round.closed and len(prev_round.games) >= 2 and all(game.winner for game in prev_round.games):
                 calculate_points(prev_round)
-                round_obj = create_next_round(prev_round)
+                round_obj = create_next_round(prev_round, payload=payload)
                 rounds_by_name[round_obj.name] = round_obj
                 summary['rounds_created'].append(round_obj.name)
         if not round_obj:
@@ -587,7 +595,7 @@ def sync_tournament_from_henrygd(payload=None):
             if has_next_round and len(round_obj.games) >= 2:
                 next_round_name = TOURNAMENT_ROUND_NAMES[index + 1]
                 if next_round_name not in rounds_by_name:
-                    next_round = create_next_round(round_obj)
+                    next_round = create_next_round(round_obj, payload=payload)
                     rounds_by_name[next_round.name] = next_round
                     summary['rounds_created'].append(next_round.name)
 
@@ -628,32 +636,69 @@ def get_previous_round(round_obj):
     return Round.query.filter_by(name=TOURNAMENT_ROUND_NAMES[round_index - 1]).first()
 
 
-def sync_round_matchups(round_obj):
+def build_matchup_pairs_from_previous_round(prev_round, target_round_name, payload=None):
+    prev_games = Game.query.filter_by(round_id=prev_round.id).order_by(Game.id).all()
+    prev_winners = [game.winner for game in prev_games if game.winner]
+
+    if payload:
+        try:
+            external_games_by_round, _ = build_henrygd_games_by_round(payload)
+            external_games = external_games_by_round.get(target_round_name, [])
+        except Exception:
+            external_games = []
+
+        if external_games:
+            matchup_pairs = []
+            resolved_pair_count = 0
+            for external_game in external_games:
+                team1 = resolve_team_name_from_candidates(external_game['team1'], prev_winners)
+                team2 = resolve_team_name_from_candidates(external_game['team2'], prev_winners)
+                if team1 and team2 and normalize_team_name(team1) != normalize_team_name(team2):
+                    matchup_pairs.append((team1, team2))
+                    resolved_pair_count += 1
+                else:
+                    matchup_pairs.append(None)
+            if resolved_pair_count:
+                return matchup_pairs, 'henrygd'
+
+    matchup_pairs = []
+    for index in range(0, len(prev_games), 2):
+        team1 = prev_games[index].winner
+        team2 = prev_games[index + 1].winner if index + 1 < len(prev_games) else None
+        if team1 and team2 and normalize_team_name(team1) != normalize_team_name(team2):
+            matchup_pairs.append((team1, team2))
+        else:
+            matchup_pairs.append(None)
+    return matchup_pairs, 'local'
+
+
+def sync_round_matchups(round_obj, payload=None):
     prev_round = get_previous_round(round_obj)
     if not prev_round:
         raise RuntimeError('Matchup sync is only available for rounds after the First Round.')
 
-    prev_games = Game.query.filter_by(round_id=prev_round.id).order_by(Game.id).all()
+    if payload is None:
+        try:
+            payload = fetch_henrygd_bracket_payload(app.config['TOURNAMENT_YEAR'])
+        except Exception:
+            payload = None
+
+    matchup_pairs, source = build_matchup_pairs_from_previous_round(prev_round, round_obj.name, payload=payload)
     current_games = Game.query.filter_by(round_id=round_obj.id).order_by(Game.id).all()
 
     summary = {
+        'source': source,
         'games_updated': 0,
         'games_skipped': 0,
         'winners_cleared': 0,
     }
 
     for game_index, game in enumerate(current_games):
-        source_index = game_index * 2
-        if source_index + 1 >= len(prev_games):
+        if game_index >= len(matchup_pairs) or not matchup_pairs[game_index]:
             summary['games_skipped'] += 1
             continue
 
-        team1 = prev_games[source_index].winner
-        team2 = prev_games[source_index + 1].winner
-        if not team1 or not team2:
-            summary['games_skipped'] += 1
-            continue
-
+        team1, team2 = matchup_pairs[game_index]
         teams_changed = game.team1 != team1 or game.team2 != team2
         if teams_changed:
             game.team1 = team1
@@ -670,18 +715,24 @@ def sync_round_matchups(round_obj):
     return summary
 
 
-def create_next_round(current_round):
+def create_next_round(current_round, payload=None):
     idx = TOURNAMENT_ROUND_NAMES.index(current_round.name)
     next_round_name = TOURNAMENT_ROUND_NAMES[idx + 1]
     point_value = current_round.point_value * 2 if next_round_name != 'Championship' else current_round.point_value
     next_round = Round(name=next_round_name, point_value=point_value, closed=True, closed_for_selection=True)
     db.session.add(next_round)
     db.session.commit()
-    games = Game.query.filter_by(round_id=current_round.id).order_by(Game.id).all()
-    for i in range(0, len(games), 2):
-        team1 = games[i].winner
-        team2 = games[i + 1].winner if i + 1 < len(games) else None
-        if team1 and team2:
+
+    if payload is None and not app.config.get('TESTING'):
+        try:
+            payload = fetch_henrygd_bracket_payload(app.config['TOURNAMENT_YEAR'])
+        except Exception:
+            payload = None
+
+    matchup_pairs, _ = build_matchup_pairs_from_previous_round(current_round, next_round_name, payload=payload)
+    for matchup_pair in matchup_pairs:
+        if matchup_pair:
+            team1, team2 = matchup_pair
             db.session.add(Game(round_id=next_round.id, team1=team1, team2=team2))
     db.session.commit()
     return next_round
@@ -1069,8 +1120,9 @@ def admin_sync_matchups():
         summary = sync_round_matchups(selected_round)
         db.session.commit()
         calculate_points(selected_round)
+        source_label = 'HenryGD bracket data' if summary['source'] == 'henrygd' else 'local winner order fallback'
         flash(
-            "Matchup sync complete: "
+            f"Matchup sync complete using {source_label}: "
             f"{summary['games_updated']} game(s) updated, "
             f"{summary['games_skipped']} game(s) skipped, "
             f"{summary['winners_cleared']} winner(s) cleared.",

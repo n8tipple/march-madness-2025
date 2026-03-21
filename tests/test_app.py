@@ -133,6 +133,37 @@ class HelperTests(BaseTestCase):
         self.assertEqual(next_games[0].team1, "A")
         self.assertEqual(next_games[0].team2, "C")
 
+    def test_create_next_round_uses_henrygd_matchup_order_when_available(self):
+        first_round = self.create_round("First Round (Round of 64)", point_value=2, closed=True, closed_for_selection=True)
+        self.create_game(first_round, "Ohio State", "TCU", winner="TCU")
+        self.create_game(first_round, "Nebraska", "Troy", winner="Nebraska")
+        self.create_game(first_round, "Louisville", "South Florida", winner="Louisville")
+        self.create_game(first_round, "Wisconsin", "High Point", winner="High Point")
+        self.create_game(first_round, "Duke", "Siena", winner="Duke")
+        self.create_game(first_round, "Vanderbilt", "McNeese", winner="Vanderbilt")
+        self.create_game(first_round, "Michigan State", "North Dakota State", winner="Michigan State")
+        self.create_game(first_round, "Arkansas", "Hawaii", winner="Arkansas")
+
+        external_games_by_round = {
+            "Second Round (Round of 32)": [
+                {"position_id": 301, "team1": "Duke", "team2": "TCU", "winner": None},
+                {"position_id": 302, "team1": "Louisville", "team2": "Michigan St.", "winner": None},
+                {"position_id": 303, "team1": "Nebraska", "team2": "Vanderbilt", "winner": None},
+                {"position_id": 304, "team1": "High Point", "team2": "Arkansas", "winner": None},
+            ]
+        }
+
+        with patch("app.build_henrygd_games_by_round", return_value=(external_games_by_round, {})):
+            next_round = create_next_round(first_round, payload={"championships": [{}]})
+
+        next_games = Game.query.filter_by(round_id=next_round.id).order_by(Game.id).all()
+        self.assertEqual([(game.team1, game.team2) for game in next_games], [
+            ("Duke", "TCU"),
+            ("Louisville", "Michigan State"),
+            ("Nebraska", "Vanderbilt"),
+            ("High Point", "Arkansas"),
+        ])
+
     def test_get_users_with_points_returns_sorted_users(self):
         round_obj = self.create_round("Elite Eight", point_value=8, closed=True, closed_for_selection=True)
         game = self.create_game(round_obj, "A", "B", winner="A")
@@ -529,20 +560,50 @@ class AdminRouteTests(BaseTestCase):
     def test_admin_sync_matchups_updates_selected_round(self):
         admin = self.create_user("admin", is_admin=True)
         first_round = self.create_round("First Round (Round of 64)", closed=True, closed_for_selection=True)
-        self.create_game(first_round, "A", "B", winner="A")
-        self.create_game(first_round, "C", "D", winner="C")
+        self.create_game(first_round, "Ohio State", "TCU", winner="TCU")
+        self.create_game(first_round, "Nebraska", "Troy", winner="Nebraska")
+        self.create_game(first_round, "Louisville", "South Florida", winner="Louisville")
+        self.create_game(first_round, "Wisconsin", "High Point", winner="High Point")
+        self.create_game(first_round, "Duke", "Siena", winner="Duke")
+        self.create_game(first_round, "Vanderbilt", "McNeese", winner="Vanderbilt")
+        self.create_game(first_round, "Michigan State", "North Dakota State", winner="Michigan State")
+        self.create_game(first_round, "Arkansas", "Hawaii", winner="Arkansas")
         second_round = self.create_round("Second Round (Round of 32)", closed=False, closed_for_selection=False)
-        game = self.create_game(second_round, "Placeholder 1", "Placeholder 2", winner="Placeholder 1")
+        games = [
+            self.create_game(second_round, "Placeholder 1", "Placeholder 2", winner="Placeholder 1"),
+            self.create_game(second_round, "Placeholder 3", "Placeholder 4"),
+            self.create_game(second_round, "Placeholder 5", "Placeholder 6"),
+            self.create_game(second_round, "Placeholder 7", "Placeholder 8"),
+        ]
+        external_games_by_round = {
+            "Second Round (Round of 32)": [
+                {"position_id": 301, "team1": "Duke", "team2": "TCU", "winner": None},
+                {"position_id": 302, "team1": "Louisville", "team2": "Michigan St.", "winner": None},
+                {"position_id": 303, "team1": "Nebraska", "team2": "Vanderbilt", "winner": None},
+                {"position_id": 304, "team1": "High Point", "team2": "Arkansas", "winner": None},
+            ]
+        }
         self.login(admin.username)
 
-        response = self.client.post("/admin_sync_matchups", data={"round_id": second_round.id}, follow_redirects=True)
+        with patch("app.fetch_henrygd_bracket_payload", return_value={"championships": [{}]}), patch(
+            "app.build_henrygd_games_by_round",
+            return_value=(external_games_by_round, {}),
+        ):
+            response = self.client.post("/admin_sync_matchups", data={"round_id": second_round.id}, follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
-        refreshed_game = db.session.get(Game, game.id)
-        self.assertEqual(refreshed_game.team1, "A")
-        self.assertEqual(refreshed_game.team2, "C")
-        self.assertIsNone(refreshed_game.winner)
-        self.assertIn(b"Matchup sync complete: 1 game(s) updated, 0 game(s) skipped, 1 winner(s) cleared.", response.data)
+        refreshed_games = [db.session.get(Game, game.id) for game in games]
+        self.assertEqual([(game.team1, game.team2) for game in refreshed_games], [
+            ("Duke", "TCU"),
+            ("Louisville", "Michigan State"),
+            ("Nebraska", "Vanderbilt"),
+            ("High Point", "Arkansas"),
+        ])
+        self.assertIsNone(refreshed_games[0].winner)
+        self.assertIn(
+            b"Matchup sync complete using HenryGD bracket data: 4 game(s) updated, 0 game(s) skipped, 1 winner(s) cleared.",
+            response.data,
+        )
 
 
 class ViewAndLeaderboardRouteTests(BaseTestCase):
