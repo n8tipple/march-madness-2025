@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h2 class="page-title">Bracket</h2>
+    <p class="page-subtitle">Full tournament bracket view.</p>
+</div>
+
+<div class="bracket-region-tabs surface-soft mb-3">
+    <div class="btn-group flex-wrap w-100" role="group">
+        <button class="btn btn-outline-primary active" data-region="all">All Regions</button>
+        <button class="btn btn-outline-primary" data-region="TL">East</button>
+        <button class="btn btn-outline-primary" data-region="TR">West</button>
+        <button class="btn btn-outline-primary" data-region="BL">South</button>
+        <button class="btn btn-outline-primary" data-region="BR">Midwest</button>
+        <button class="btn btn-outline-primary" data-region="CC">Final Four</button>
+    </div>
+</div>
+
+<div id="bracket-container"></div>
+
+<style>
+    .bracket-region-tabs .btn-group {
+        display: flex;
+        gap: 0.4rem;
+    }
+
+    .bracket-region-tabs .btn {
+        flex: 1 1 90px;
+        border-radius: 0.72rem !important;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 0.44rem 0.4rem;
+    }
+
+    .bracket-region {
+        margin-bottom: 1.5rem;
+    }
+
+    .bracket-region-title {
+        font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+        font-size: 1.4rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #173551;
+        margin: 0 0 0.6rem;
+        padding-bottom: 0.3rem;
+        border-bottom: 2px solid #e8d8bf;
+    }
+
+    .bracket-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.5rem;
+    }
+
+    .bracket-grid {
+        display: flex;
+        gap: 0;
+        min-width: max-content;
+        align-items: flex-start;
+    }
+
+    .bracket-round {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        min-width: 170px;
+        position: relative;
+    }
+
+    .bracket-round-label {
+        text-align: center;
+        font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #7a8a9e;
+        margin-bottom: 0.4rem;
+        font-weight: 700;
+    }
+
+    .bracket-matchup {
+        display: flex;
+        flex-direction: column;
+        margin: 4px 6px;
+        border: 1px solid #e2cfb3;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        background: #fffdfa;
+        box-shadow: 0 2px 6px rgba(20, 31, 47, 0.06);
+        min-width: 155px;
+    }
+
+    .bracket-team {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.3rem 0.45rem;
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: #1a3652;
+        border-bottom: 1px solid #f0e5d5;
+        min-height: 28px;
+        line-height: 1.15;
+    }
+
+    .bracket-team:last-child {
+        border-bottom: none;
+    }
+
+    .bracket-team.winner {
+        background: rgba(31, 157, 106, 0.12);
+        font-weight: 800;
+    }
+
+    .bracket-team.tbd {
+        color: #aab5c4;
+        font-style: italic;
+        font-weight: 400;
+    }
+
+    .bracket-team-logo {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+
+    .bracket-seed {
+        color: #8a99ab;
+        font-size: 0.68rem;
+        min-width: 16px;
+        flex-shrink: 0;
+    }
+
+    .bracket-team-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .bracket-score {
+        margin-left: auto;
+        font-size: 0.72rem;
+        color: #5a6b80;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .bracket-connector {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        min-width: 16px;
+        max-width: 16px;
+    }
+
+    .bracket-spacer {
+        flex: 1;
+    }
+
+    /* Final Four special styling */
+    .bracket-final-four .bracket-matchup {
+        border-color: #c8a96e;
+        box-shadow: 0 3px 10px rgba(200, 169, 110, 0.2);
+    }
+
+    .bracket-final-four .bracket-round-label {
+        color: #b8941e;
+        font-size: 0.82rem;
+    }
+
+    @media (min-width: 768px) {
+        .bracket-region-tabs .btn {
+            flex-basis: 110px;
+            font-size: 0.88rem;
+            padding: 0.5rem 0.6rem;
+        }
+
+        .bracket-matchup {
+            min-width: 175px;
+        }
+
+        .bracket-team {
+            font-size: 0.8rem;
+            padding: 0.35rem 0.5rem;
+            min-height: 30px;
+        }
+    }
+</style>
+
+<script>
+(function() {
+    const bracketData = {{ bracket_data | tojson }};
+    const teamInfoData = {{ team_info_data | tojson }};
+    const container = document.getElementById('bracket-container');
+
+    // Organize games by section and round depth
+    const games = bracketData.games || [];
+    const gamesById = {};
+    games.forEach(g => { gamesById[g.bracketPositionId] = g; });
+
+    // Section mapping
+    const sectionNames = { TL: 'East', TR: 'West', BL: 'South', BR: 'Midwest', CC: 'Final Four', TT: 'First Four' };
+
+    // Round labels by depth (position prefix)
+    const roundLabels = {
+        1: 'First Four',
+        2: 'Round of 64',
+        3: 'Round of 32',
+        4: 'Sweet 16',
+        5: 'Elite 8',
+        6: 'Final Four',
+        7: 'Championship'
+    };
+
+    // Group games by sectionId
+    const sections = {};
+    games.forEach(g => {
+        const sid = g.sectionId || 'CC';
+        if (!sections[sid]) sections[sid] = [];
+        sections[sid].push(g);
+    });
+
+    // Normalize team name to match team_info keys
+    function normalizeTeamName(name) {
+        if (!name) return '';
+        let canonical = name.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!canonical) return '';
+        let tokens = canonical.split(' ');
+        if (tokens[0] === 'st') tokens[0] = 'saint';
+        if (tokens.length >= 2 && tokens[tokens.length-1] === 'st' && tokens[tokens.length-2] !== 'saint') {
+            tokens[tokens.length-1] = 'state';
+        }
+        canonical = tokens.join(' ');
+        const aliases = {
+            'saint francis u': 'saint francis',
+            'st francis u': 'saint francis',
+            'texas a m': 'texas am',
+            'texas a and m': 'texas am',
+            'saint mary s': 'saint marys',
+            'saint marys ca': 'saint marys',
+            'saint peters': 'saint peters',
+            'st peters': 'saint peters',
+            'queens n c': 'queens',
+            'miami fl': 'miami fla'
+        };
+        return aliases[canonical] || canonical;
+    }
+
+    function getTeamInfo(teamName) {
+        const key = normalizeTeamName(teamName);
+        return teamInfoData[key] || {};
+    }
+
+    function renderTeam(team) {
+        if (!team) return '<div class="bracket-team tbd"><span class="bracket-team-name">TBD</span></div>';
+        const name = team.nameShort || team.nameFull || 'TBD';
+        const info = getTeamInfo(name);
+        const isWinner = team.isWinner;
+        const seed = team.seed || (info.seed) || '';
+        const logo = info.logo || team.logoUrl || '';
+        const score = team.score;
+
+        let html = '<div class="bracket-team' + (isWinner ? ' winner' : '') + (name === 'TBD' ? ' tbd' : '') + '">';
+        if (logo) html += '<img src="' + logo + '" class="bracket-team-logo" alt="">';
+        if (seed) html += '<span class="bracket-seed">(' + seed + ')</span>';
+        html += '<span class="bracket-team-name">' + name + '</span>';
+        if (score != null && score !== '') html += '<span class="bracket-score">' + score + '</span>';
+        html += '</div>';
+        return html;
+    }
+
+    function renderMatchup(game) {
+        const teams = game.teams || [];
+        let html = '<div class="bracket-matchup">';
+        if (teams.length >= 1) html += renderTeam(teams[0]);
+        if (teams.length >= 2) html += renderTeam(teams[1]);
+        if (teams.length === 0) {
+            html += renderTeam(null);
+            html += renderTeam(null);
+        }
+        html += '</div>';
+        return html;
+    }
+
+    function renderRegion(sectionId, sectionGames) {
+        // Sort games by bracketPositionId
+        sectionGames.sort((a, b) => a.bracketPositionId - b.bracketPositionId);
+
+        // Group by round (first digit of position id)
+        const rounds = {};
+        sectionGames.forEach(g => {
+            const roundNum = Math.floor(g.bracketPositionId / 100);
+            if (!rounds[roundNum]) rounds[roundNum] = [];
+            rounds[roundNum].push(g);
+        });
+
+        const roundKeys = Object.keys(rounds).map(Number).sort();
+        const regionName = sectionNames[sectionId] || sectionId;
+        const isFinalFour = sectionId === 'CC';
+
+        let html = '<div class="bracket-region" data-section="' + sectionId + '">';
+        html += '<h3 class="bracket-region-title">' + regionName + '</h3>';
+        html += '<div class="bracket-scroll"><div class="bracket-grid' + (isFinalFour ? ' bracket-final-four' : '') + '">';
+
+        roundKeys.forEach((roundNum, idx) => {
+            const roundGames = rounds[roundNum];
+            const label = roundLabels[roundNum] || 'Round ' + roundNum;
+            html += '<div class="bracket-round" style="--round-index: ' + idx + ';">';
+            html += '<div class="bracket-round-label">' + label + '</div>';
+
+            roundGames.forEach(game => {
+                html += renderMatchup(game);
+            });
+
+            html += '</div>';
+
+            // Add connector space between rounds
+            if (idx < roundKeys.length - 1) {
+                html += '<div class="bracket-connector"></div>';
+            }
+        });
+
+        html += '</div></div></div>';
+        return html;
+    }
+
+    // Render all regions
+    const regionOrder = ['TL', 'TR', 'BL', 'BR', 'CC'];
+    let allHtml = '';
+    regionOrder.forEach(sid => {
+        if (sections[sid]) {
+            allHtml += renderRegion(sid, sections[sid]);
+        }
+    });
+
+    // Add First Four if present
+    if (sections['TT']) {
+        allHtml = renderRegion('TT', sections['TT']) + allHtml;
+    }
+
+    container.innerHTML = allHtml;
+
+    // Region filter tabs
+    document.querySelectorAll('.bracket-region-tabs .btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.bracket-region-tabs .btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const region = this.getAttribute('data-region');
+            document.querySelectorAll('.bracket-region').forEach(r => {
+                if (region === 'all') {
+                    r.style.display = '';
+                } else if (region === 'CC') {
+                    // Show Final Four + Championship
+                    r.style.display = r.getAttribute('data-section') === 'CC' ? '' : 'none';
+                } else {
+                    r.style.display = r.getAttribute('data-section') === region ? '' : 'none';
+                }
+            });
+        });
+    });
+})();
+</script>
+{% endblock %}

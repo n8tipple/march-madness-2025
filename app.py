@@ -308,6 +308,33 @@ def get_last_sync():
     except (ValueError, TypeError):
         return setting.value
 
+def get_team_info():
+    """Return cached team info dict: {normalized_name: {logo, seed, name}}."""
+    setting = AppSetting.query.get('team_info')
+    if not setting:
+        return {}
+    try:
+        return json.loads(setting.value)
+    except (ValueError, TypeError):
+        return {}
+
+
+def team_seed(team_name, team_info):
+    """Return seed string like '(1) ' for a team, or '' if unknown."""
+    info = team_info.get(normalize_team_name(team_name))
+    if info and info.get('seed'):
+        return f"({info['seed']}) "
+    return ''
+
+
+def team_logo(team_name, team_info):
+    """Return logo URL for a team, or '' if unknown."""
+    info = team_info.get(normalize_team_name(team_name))
+    if info:
+        return info.get('logo', '')
+    return ''
+
+
 def parse_non_negative_int(value, default=0):
     try:
         return max(0, int(value))
@@ -417,6 +444,7 @@ def build_henrygd_games_by_round(payload):
         depth_cache[position_id] = 1 + depth_for_position(parent_key, next_trail)
         return depth_cache[position_id]
 
+    team_info = {}  # normalized_name -> {logo, seed, name}
     games_by_round = {}
     for game in bracket_games:
         position_id = game.get('bracketPositionId')
@@ -436,6 +464,14 @@ def build_henrygd_games_by_round(payload):
             teams.append(team_name)
             if team.get('isWinner'):
                 winner_name = team_name
+            # Extract logo and seed info
+            nkey = normalize_team_name(team_name)
+            if nkey and nkey not in team_info:
+                team_info[nkey] = {
+                    'logo': team.get('logoUrl', ''),
+                    'seed': team.get('seed'),
+                    'name': team_name,
+                }
 
         if len(teams) < 2:
             continue
@@ -452,7 +488,7 @@ def build_henrygd_games_by_round(payload):
     for round_games in games_by_round.values():
         round_games.sort(key=lambda game: game['position_id'])
 
-    return games_by_round
+    return games_by_round, team_info
 
 
 def resolve_round_winner_name(local_game, external_winner_name):
@@ -506,7 +542,17 @@ def apply_henrygd_winners_to_round(round_obj, external_games):
 
 def sync_tournament_from_henrygd(payload=None):
     payload = payload or fetch_henrygd_bracket_payload(app.config['TOURNAMENT_YEAR'])
-    external_games_by_round = build_henrygd_games_by_round(payload)
+    external_games_by_round, team_info = build_henrygd_games_by_round(payload)
+
+    # Cache team info (logos, seeds) for use across the app
+    if team_info:
+        setting = AppSetting.query.get('team_info')
+        info_json = json.dumps(team_info)
+        if setting:
+            setting.value = info_json
+        else:
+            db.session.add(AppSetting(key='team_info', value=info_json))
+        db.session.commit()
 
     summary = {
         'winners_updated': 0,
@@ -536,6 +582,11 @@ def sync_tournament_from_henrygd(payload=None):
         calculate_points(round_obj)
 
         if round_obj.games and all(game.winner for game in round_obj.games):
+            if not round_obj.closed:
+                round_obj.closed = True
+                round_obj.closed_for_selection = True
+                db.session.commit()
+                summary['rounds_closed'].append(round_name)
             has_next_round = round_name != TOURNAMENT_ROUND_NAMES[-1]
             if has_next_round and len(round_obj.games) >= 2:
                 next_round_name = TOURNAMENT_ROUND_NAMES[index + 1]
@@ -544,6 +595,7 @@ def sync_tournament_from_henrygd(payload=None):
                     rounds_by_name[next_round.name] = next_round
                     summary['rounds_created'].append(next_round.name)
 
+    db.session.commit()
     return summary
 
 
@@ -657,14 +709,19 @@ def build_leaderboard_pick_data(users):
     return closed_rounds, leaderboard_picks
 
 # Context Processor for Navbar Points
+app.jinja_env.globals['team_seed'] = team_seed
+app.jinja_env.globals['team_logo'] = team_logo
+app.jinja_env.globals['normalize_team_name'] = normalize_team_name
+
 @app.context_processor
 def inject_user_points():
     tournament_year = app.config['TOURNAMENT_YEAR']
+    ti = get_team_info()
     if current_user.is_authenticated:
         closed_round_ids = [r.id for r in Round.query.filter_by(closed=True).all()]
         total_points = db.session.query(db.func.sum(Pick.points)).join(Game).filter(Pick.user_id == current_user.id, Game.round_id.in_(closed_round_ids)).scalar() or 0
-        return {'user_points': total_points, 'tournament_year': tournament_year}
-    return {'user_points': 0, 'tournament_year': tournament_year}
+        return {'user_points': total_points, 'tournament_year': tournament_year, 'team_info': ti}
+    return {'user_points': 0, 'tournament_year': tournament_year, 'team_info': ti}
 
 # Routes
 @app.route('/')
@@ -931,10 +988,14 @@ def admin_sync_henrygd():
             success_message = (
                 "Data sync complete: "
                 f"{summary['winners_updated']} winner(s) updated, "
-                f"{len(summary['rounds_created'])} round(s) created. "
-                "Round saved."
+                f"{len(summary['rounds_closed'])} round(s) closed, "
+                f"{len(summary['rounds_created'])} round(s) created."
             )
             flash(success_message, 'success')
+            # Navigate to the latest round after sync
+            latest_round = Round.query.order_by(Round.id.desc()).first()
+            if latest_round:
+                selected_round_id = latest_round.id
         except Exception as exc:
             logger.exception("HenryGD sync failed")
             flash(f'HenryGD sync failed: {exc}', 'danger')
@@ -955,8 +1016,8 @@ def sync_results():
             success_message = (
                 "Data sync complete: "
                 f"{summary['winners_updated']} winner(s) updated, "
-                f"{len(summary['rounds_created'])} round(s) created. "
-                "Round saved."
+                f"{len(summary['rounds_closed'])} round(s) closed, "
+                f"{len(summary['rounds_created'])} round(s) created."
             )
             flash(success_message, 'success')
         except Exception as exc:
@@ -1037,6 +1098,23 @@ def admin_submit_picks():
             return redirect(url_for('admin_submit_picks', round_id=current_round.id, user_id=selected_user_id))
     
     return render_template('admin_submit_picks.html', all_open_rounds=all_open_rounds, current_round=current_round, games=games, users=users, existing_picks=existing_picks, selected_user_id=selected_user_id, selected_user=selected_user, selected_user_points=selected_user_points)
+
+@app.route('/bracket')
+@login_required
+def bracket():
+    try:
+        payload = fetch_henrygd_bracket_payload(app.config['TOURNAMENT_YEAR'])
+        championships = payload.get('championships', [])
+        if not championships:
+            flash('No bracket data available yet.', 'warning')
+            return redirect(url_for('home'))
+        bracket_data = championships[0]
+    except Exception as exc:
+        logger.exception("Failed to fetch bracket data")
+        flash(f'Could not load bracket: {exc}', 'danger')
+        return redirect(url_for('home'))
+    ti = get_team_info()
+    return render_template('bracket.html', bracket_data=bracket_data, team_info_data=ti)
 
 @app.route('/leaderboard')
 def leaderboard():
