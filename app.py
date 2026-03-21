@@ -327,14 +327,6 @@ def team_seed(team_name, team_info):
     return ''
 
 
-def team_logo(team_name, team_info):
-    """Return logo URL for a team, or '' if unknown."""
-    info = team_info.get(normalize_team_name(team_name))
-    if info:
-        return info.get('logo', '')
-    return ''
-
-
 def parse_non_negative_int(value, default=0):
     try:
         return max(0, int(value))
@@ -492,11 +484,15 @@ def build_henrygd_games_by_round(payload):
 
 
 def resolve_round_winner_name(local_game, external_winner_name):
-    winner_key = normalize_team_name(external_winner_name)
-    if winner_key == normalize_team_name(local_game.team1):
-        return local_game.team1
-    if winner_key == normalize_team_name(local_game.team2):
-        return local_game.team2
+    return resolve_winner_name_for_matchup(local_game.team1, local_game.team2, external_winner_name)
+
+
+def resolve_winner_name_for_matchup(team1, team2, winner_name):
+    winner_key = normalize_team_name(winner_name)
+    if winner_key == normalize_team_name(team1):
+        return team1
+    if winner_key == normalize_team_name(team2):
+        return team2
     return None
 
 
@@ -600,22 +596,79 @@ def sync_tournament_from_henrygd(payload=None):
 
 
 def calculate_points(round):
-    games = Game.query.filter_by(round_id=round.id).filter(Game.winner.isnot(None)).all()
-    picks = Pick.query.filter(Pick.game_id.in_([g.id for g in games])).all()
+    games = Game.query.filter_by(round_id=round.id).all()
+    game_ids = [game.id for game in games]
+    picks = Pick.query.filter(Pick.game_id.in_(game_ids)).all() if game_ids else []
     for pick in picks:
         game = pick.game
-        if game.winner:
-            if pick.picked_team == game.winner:
-                if round.name == 'Championship':
-                    pick.points = pick.wager
-                else:
-                    pick.points = round.point_value
+        if not game.winner:
+            pick.points = 0
+        elif pick.picked_team == game.winner:
+            if round.name == 'Championship':
+                pick.points = pick.wager
             else:
-                if round.name == 'Championship':
-                    pick.points = -pick.wager
-                else:
-                    pick.points = 0
+                pick.points = round.point_value
+        else:
+            if round.name == 'Championship':
+                pick.points = -pick.wager
+            else:
+                pick.points = 0
     db.session.commit()
+
+
+def get_previous_round(round_obj):
+    if not round_obj:
+        return None
+    try:
+        round_index = TOURNAMENT_ROUND_NAMES.index(round_obj.name)
+    except ValueError:
+        return None
+    if round_index == 0:
+        return None
+    return Round.query.filter_by(name=TOURNAMENT_ROUND_NAMES[round_index - 1]).first()
+
+
+def sync_round_matchups(round_obj):
+    prev_round = get_previous_round(round_obj)
+    if not prev_round:
+        raise RuntimeError('Matchup sync is only available for rounds after the First Round.')
+
+    prev_games = Game.query.filter_by(round_id=prev_round.id).order_by(Game.id).all()
+    current_games = Game.query.filter_by(round_id=round_obj.id).order_by(Game.id).all()
+
+    summary = {
+        'games_updated': 0,
+        'games_skipped': 0,
+        'winners_cleared': 0,
+    }
+
+    for game_index, game in enumerate(current_games):
+        source_index = game_index * 2
+        if source_index + 1 >= len(prev_games):
+            summary['games_skipped'] += 1
+            continue
+
+        team1 = prev_games[source_index].winner
+        team2 = prev_games[source_index + 1].winner
+        if not team1 or not team2:
+            summary['games_skipped'] += 1
+            continue
+
+        teams_changed = game.team1 != team1 or game.team2 != team2
+        if teams_changed:
+            game.team1 = team1
+            game.team2 = team2
+            summary['games_updated'] += 1
+
+        resolved_winner = resolve_winner_name_for_matchup(game.team1, game.team2, game.winner)
+        if game.winner and not resolved_winner:
+            game.winner = None
+            summary['winners_cleared'] += 1
+        elif resolved_winner and game.winner != resolved_winner:
+            game.winner = resolved_winner
+
+    return summary
+
 
 def create_next_round(current_round):
     idx = TOURNAMENT_ROUND_NAMES.index(current_round.name)
@@ -710,7 +763,6 @@ def build_leaderboard_pick_data(users):
 
 # Context Processor for Navbar Points
 app.jinja_env.globals['team_seed'] = team_seed
-app.jinja_env.globals['team_logo'] = team_logo
 app.jinja_env.globals['normalize_team_name'] = normalize_team_name
 
 @app.context_processor
@@ -908,8 +960,7 @@ def admin():
                     else:
                         team1 = request.form.get(f'game{game.id}_team1_select')
                         team2 = request.form.get(f'game{game.id}_team2_select')
-                        prev_round_idx = TOURNAMENT_ROUND_NAMES.index(selected_round.name) - 1
-                        prev_round = Round.query.filter_by(name=TOURNAMENT_ROUND_NAMES[prev_round_idx]).first()
+                        prev_round = get_previous_round(selected_round)
                         prev_winners = [game.winner for game in prev_round.games if game.winner] if prev_round else []
                         if team1 in prev_winners and team2 in prev_winners and team1 != team2:
                             game.team1 = team1
@@ -951,10 +1002,7 @@ def admin():
                 flash(f'{selected_round.name} saved successfully', 'success')
         return redirect(url_for('admin', round_id=selected_round.id if selected_round else selected_round_id))
     
-    prev_round = None
-    if selected_round and selected_round.name != 'First Round (Round of 64)':
-        prev_round_idx = TOURNAMENT_ROUND_NAMES.index(selected_round.name) - 1
-        prev_round = Round.query.filter_by(name=TOURNAMENT_ROUND_NAMES[prev_round_idx]).first()
+    prev_round = get_previous_round(selected_round)
     prev_winners = [game.winner for game in prev_round.games if game.winner] if prev_round else []
     
     users = User.query.all()
@@ -986,7 +1034,7 @@ def admin_sync_henrygd():
             summary = sync_tournament_from_henrygd()
             _save_last_sync()
             success_message = (
-                "Data sync complete: "
+                "Winner sync complete: "
                 f"{summary['winners_updated']} winner(s) updated, "
                 f"{len(summary['rounds_closed'])} round(s) closed, "
                 f"{len(summary['rounds_created'])} round(s) created."
@@ -1004,6 +1052,37 @@ def admin_sync_henrygd():
         return redirect(url_for('admin', round_id=selected_round_id))
     return redirect(url_for('admin'))
 
+@app.route('/admin_sync_matchups', methods=['POST'])
+@login_required
+def admin_sync_matchups():
+    if not current_user.is_admin:
+        flash('Access denied', 'danger')
+        return redirect(url_for('home'))
+
+    selected_round_id = request.form.get('round_id', type=int)
+    selected_round = db.session.get(Round, selected_round_id) if selected_round_id else None
+    if not selected_round:
+        flash('Round not found', 'danger')
+        return redirect(url_for('admin'))
+
+    try:
+        summary = sync_round_matchups(selected_round)
+        db.session.commit()
+        calculate_points(selected_round)
+        flash(
+            "Matchup sync complete: "
+            f"{summary['games_updated']} game(s) updated, "
+            f"{summary['games_skipped']} game(s) skipped, "
+            f"{summary['winners_cleared']} winner(s) cleared.",
+            'success',
+        )
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Round matchup sync failed")
+        flash(f'Matchup sync failed: {exc}', 'danger')
+
+    return redirect(url_for('admin', round_id=selected_round.id))
+
 @app.route('/sync_results', methods=['POST'])
 @login_required
 def sync_results():
@@ -1014,7 +1093,7 @@ def sync_results():
             summary = sync_tournament_from_henrygd()
             _save_last_sync()
             success_message = (
-                "Data sync complete: "
+                "Winner sync complete: "
                 f"{summary['winners_updated']} winner(s) updated, "
                 f"{len(summary['rounds_closed'])} round(s) closed, "
                 f"{len(summary['rounds_created'])} round(s) created."

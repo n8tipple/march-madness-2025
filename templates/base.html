@@ -578,7 +578,6 @@
                     <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'pick' }}" href="{{ url_for('pick') }}" onclick="showLoading()">Make Picks</a>
                     <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'view_picks' }}" href="{{ url_for('view_picks') }}" onclick="showLoading()">View Picks</a>
                     <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'leaderboard' }}" href="{{ url_for('leaderboard') }}" onclick="showLoading()">Leaderboard</a>
-                    <a class="btn btn-outline-primary {{ 'active' if request.endpoint == 'bracket' }}" href="{{ url_for('bracket') }}" onclick="showLoading()">Bracket</a>
                     {% if current_user.is_admin %}
                         <a class="btn btn-outline-danger {{ 'active' if request.endpoint == 'admin' }}" href="{{ url_for('admin') }}" onclick="showLoading()">Admin</a>
                         <a class="btn btn-outline-danger {{ 'active' if request.endpoint == 'admin_submit_picks' }}" href="{{ url_for('admin_submit_picks') }}" onclick="showLoading()">Submit Picks for Users</a>

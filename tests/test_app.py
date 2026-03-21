@@ -21,6 +21,7 @@ from app import (  # noqa: E402
     db,
     get_users_with_points,
     parse_non_negative_int,
+    sync_round_matchups,
     sync_tournament_from_henrygd,
 )
 
@@ -166,7 +167,7 @@ class HelperTests(BaseTestCase):
             ]
         }
 
-        games_by_round = build_henrygd_games_by_round(payload)
+        games_by_round, team_info = build_henrygd_games_by_round(payload)
 
         self.assertIn("First Round (Round of 64)", games_by_round)
         self.assertIn("Second Round (Round of 32)", games_by_round)
@@ -174,6 +175,47 @@ class HelperTests(BaseTestCase):
         self.assertEqual(len(games_by_round["First Round (Round of 64)"]), 1)
         self.assertEqual(games_by_round["First Round (Round of 64)"][0]["team1"], "A")
         self.assertEqual(games_by_round["First Round (Round of 64)"][0]["winner"], "A")
+        self.assertEqual(team_info["a"]["name"], "A")
+
+    def test_sync_round_matchups_updates_existing_round_games(self):
+        first_round = self.create_round("First Round (Round of 64)", closed=True, closed_for_selection=True)
+        self.create_game(first_round, "A", "B", winner="A")
+        self.create_game(first_round, "C", "D", winner="C")
+        self.create_game(first_round, "E", "F", winner="E")
+        self.create_game(first_round, "G", "H", winner="G")
+
+        second_round = self.create_round("Second Round (Round of 32)", closed=True, closed_for_selection=True)
+        game1 = self.create_game(second_round, "Old 1", "Old 2", winner="Old 1")
+        game2 = self.create_game(second_round, "Old 3", "Old 4")
+
+        summary = sync_round_matchups(second_round)
+        db.session.commit()
+
+        refreshed_game1 = db.session.get(Game, game1.id)
+        refreshed_game2 = db.session.get(Game, game2.id)
+        self.assertEqual(summary["games_updated"], 2)
+        self.assertEqual(summary["games_skipped"], 0)
+        self.assertEqual(summary["winners_cleared"], 1)
+        self.assertEqual(refreshed_game1.team1, "A")
+        self.assertEqual(refreshed_game1.team2, "C")
+        self.assertIsNone(refreshed_game1.winner)
+        self.assertEqual(refreshed_game2.team1, "E")
+        self.assertEqual(refreshed_game2.team2, "G")
+
+    def test_calculate_points_resets_points_when_winner_cleared(self):
+        round_obj = self.create_round("Sweet 16", point_value=4, closed=True, closed_for_selection=True)
+        game = self.create_game(round_obj, "A", "B", winner="A")
+        user = self.create_user("nate")
+        pick = self.create_pick(user, game, "A")
+
+        calculate_points(round_obj)
+        self.assertEqual(db.session.get(Pick, pick.id).points, 4)
+
+        game.winner = None
+        db.session.commit()
+
+        calculate_points(round_obj)
+        self.assertEqual(db.session.get(Pick, pick.id).points, 0)
 
     def test_sync_tournament_from_henrygd_updates_winners_and_creates_second_round(self):
         user = self.create_user("nate")
@@ -482,7 +524,25 @@ class AdminRouteTests(BaseTestCase):
             response = self.client.post("/admin_sync_henrygd", data={"round_id": round_obj.id}, follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"HenryGD sync complete: 3 winner(s) updated, 1 round(s) closed, 1 round(s) created.", response.data)
+        self.assertIn(b"Winner sync complete: 3 winner(s) updated, 1 round(s) closed, 1 round(s) created.", response.data)
+
+    def test_admin_sync_matchups_updates_selected_round(self):
+        admin = self.create_user("admin", is_admin=True)
+        first_round = self.create_round("First Round (Round of 64)", closed=True, closed_for_selection=True)
+        self.create_game(first_round, "A", "B", winner="A")
+        self.create_game(first_round, "C", "D", winner="C")
+        second_round = self.create_round("Second Round (Round of 32)", closed=False, closed_for_selection=False)
+        game = self.create_game(second_round, "Placeholder 1", "Placeholder 2", winner="Placeholder 1")
+        self.login(admin.username)
+
+        response = self.client.post("/admin_sync_matchups", data={"round_id": second_round.id}, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        refreshed_game = db.session.get(Game, game.id)
+        self.assertEqual(refreshed_game.team1, "A")
+        self.assertEqual(refreshed_game.team2, "C")
+        self.assertIsNone(refreshed_game.winner)
+        self.assertIn(b"Matchup sync complete: 1 game(s) updated, 0 game(s) skipped, 1 winner(s) cleared.", response.data)
 
 
 class ViewAndLeaderboardRouteTests(BaseTestCase):
@@ -503,7 +563,9 @@ class ViewAndLeaderboardRouteTests(BaseTestCase):
         response = self.client.get("/leaderboard")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Sweet 16", response.data)
-        self.assertIn(b"<strong>A</strong> vs B", response.data)
+        self.assertIn(b"<strong>A</strong>", response.data)
+        self.assertIn(b'<span class="vs-text">vs</span>', response.data)
+        self.assertIn(b'<span class="team-with-logo">B</span>', response.data)
         self.assertNotIn(b"leader-inline-pick", response.data)
         self.assertIn(b"Round Total", response.data)
         self.assertNotIn(b">Result<", response.data)
