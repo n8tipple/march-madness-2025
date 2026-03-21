@@ -85,13 +85,14 @@
                                     <div class="form-check me-2">
                                         <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team1 }}"
                                             id="game{{ game.id }}_team1"
-                                            {% if game.winner == game.team1 %}checked{% endif %}>
+                                            {% if game.winner and normalize_team_name(game.winner) == normalize_team_name(game.team1) %}checked{% endif %}>
                                         <label class="form-check-label" for="game{{ game.id }}_team1"> </label>
                                     </div>
-                                    <select name="game{{ game.id }}_team1_select" class="form-select winner-select">
+                                    <select name="game{{ game.id }}_team1_select" class="form-select winner-select"
+                                            data-radio-target="game{{ game.id }}_team1">
                                         <option value="">Select Team 1</option>
                                         {% for winner in prev_winners %}
-                                            <option value="{{ winner }}" {% if game.team1 == winner %}selected{% endif %}>
+                                            <option value="{{ winner }}" {% if normalize_team_name(game.team1) == normalize_team_name(winner) %}selected{% endif %}>
                                                 {{ winner }}
                                             </option>
                                         {% endfor %}
@@ -112,13 +113,14 @@
                                     <div class="form-check me-2">
                                         <input type="radio" class="form-check-input" name="game{{ game.id }}_winner" value="{{ game.team2 }}"
                                             id="game{{ game.id }}_team2"
-                                            {% if game.winner == game.team2 %}checked{% endif %}>
+                                            {% if game.winner and normalize_team_name(game.winner) == normalize_team_name(game.team2) %}checked{% endif %}>
                                         <label class="form-check-label" for="game{{ game.id }}_team2"> </label>
                                     </div>
-                                    <select name="game{{ game.id }}_team2_select" class="form-select winner-select">
+                                    <select name="game{{ game.id }}_team2_select" class="form-select winner-select"
+                                            data-radio-target="game{{ game.id }}_team2">
                                         <option value="">Select Team 2</option>
                                         {% for winner in prev_winners %}
-                                            <option value="{{ winner }}" {% if game.team2 == winner %}selected{% endif %}>
+                                            <option value="{{ winner }}" {% if normalize_team_name(game.team2) == normalize_team_name(winner) %}selected{% endif %}>
                                                 {{ winner }}
                                             </option>
                                         {% endfor %}
@@ -171,6 +173,17 @@
                     const radio = radioId ? document.getElementById(radioId) : null;
                     if (radio) {
                         radio.checked = true;
+                    }
+                });
+            });
+
+            // Sync radio button values when team dropdowns change
+            document.querySelectorAll('.winner-select').forEach(function(select) {
+                select.addEventListener('change', function() {
+                    const radioId = select.getAttribute('data-radio-target');
+                    const radio = radioId ? document.getElementById(radioId) : null;
+                    if (radio) {
+                        radio.value = select.value;
                     }
                 });
             });

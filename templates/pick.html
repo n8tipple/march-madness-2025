@@ -39,7 +39,11 @@
                             <input type="radio" class="form-check-input" name="game{{ game.id }}" value="{{ game.team1 }}"
                                 id="game{{ game.id }}_team1"
                                 {% if existing_pick and existing_pick.picked_team == game.team1 %}checked{% endif %}>
-                            <label class="form-check-label" for="game{{ game.id }}_team1">{{ game.team1 }}</label>
+                            <label class="form-check-label team-label" for="game{{ game.id }}_team1">
+                                {% set logo1 = team_logo(game.team1, team_info) %}
+                                {% if logo1 %}<img src="{{ logo1 }}" class="team-logo" alt="">{% endif %}
+                                <span class="team-seed">{{ team_seed(game.team1, team_info) }}</span>{{ game.team1 }}
+                            </label>
                         </div>
                     </td>
                     <td class="pick-cell" data-radio-id="game{{ game.id }}_team2">
@@ -47,7 +51,11 @@
                             <input type="radio" class="form-check-input" name="game{{ game.id }}" value="{{ game.team2 }}"
                                 id="game{{ game.id }}_team2"
                                 {% if existing_pick and existing_pick.picked_team == game.team2 %}checked{% endif %}>
-                            <label class="form-check-label" for="game{{ game.id }}_team2">{{ game.team2 }}</label>
+                            <label class="form-check-label team-label" for="game{{ game.id }}_team2">
+                                {% set logo2 = team_logo(game.team2, team_info) %}
+                                {% if logo2 %}<img src="{{ logo2 }}" class="team-logo" alt="">{% endif %}
+                                <span class="team-seed">{{ team_seed(game.team2, team_info) }}</span>{{ game.team2 }}
+                            </label>
                         </div>
                     </td>
                 </tr>
@@ -162,6 +170,26 @@
         width: 100%;
         font-weight: 700;
         color: #173551;
+    }
+
+    .team-label {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .team-logo {
+        width: 22px;
+        height: 22px;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+
+    .team-seed {
+        color: #7a8a9e;
+        font-weight: 600;
+        font-size: 0.82rem;
+        flex-shrink: 0;
     }
 
     .submit-btn {
