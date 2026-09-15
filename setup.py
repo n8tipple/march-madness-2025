@@ -1,5 +1,6 @@
 import json
 import os
+import secrets
 import ssl
 import sys
 import urllib.error
@@ -15,17 +16,24 @@ except ImportError:
 
 TOURNAMENT_YEAR = 2026
 
+# Passwords are generated fresh on every run, never hardcoded/committed:
+# a fixed password in source is a permanent credential leak the moment the
+# repo is pushed anywhere, public or not.
+USER_PROFILES = [
+    ('donjune', False, 'The Don of a New June', 'don_june.png'),
+    ('Nate', True, 'Net Rippin’ Nate', 'nate.png'),
+    ('Chris', True, 'Clutch Chris', 'chris.png'),
+    ('Casey', True, 'Coast-to-Coast Casey', 'casey.png'),
+    ('James', False, 'Fast Break James', 'james.png'),
+    ('Keith', False, 'Key Shot Keith', 'keith.png'),
+    ('Dave', False, 'Drive Lane Dave', 'dave.png'),
+    ('Sherry', False, 'Sharp Shooter Sherry', 'sherry.png'),
+    ('Tyler', False, 'Triple Threat Tyler', 'tyler.png'),
+    ('Meiko', False, 'Money Meiko', 'meiko.png'),
+]
 USERS = [
-    ('donjune', 'jump27', False, 'The Don of a New June', 'don_june.png'),
-    ('Nate', 'pass57', True, 'Net Rippin’ Nate', 'nate.png'),
-    ('Chris', 'pass18', True, 'Clutch Chris', 'chris.png'),
-    ('Casey', 'bball32', True, 'Coast-to-Coast Casey', 'casey.png'),
-    ('James', 'slam56', False, 'Fast Break James', 'james.png'),
-    ('Keith', 'shot61', False, 'Key Shot Keith', 'keith.png'),
-    ('Dave', 'hoop19', False, 'Drive Lane Dave', 'dave.png'),
-    ('Sherry', 'swish48', False, 'Sharp Shooter Sherry', 'sherry.png'),
-    ('Tyler', 'hoop23', False, 'Triple Threat Tyler', 'tyler.png'),
-    ('Meiko', 'slam96', False, 'Money Meiko', 'meiko.png'),
+    (username, secrets.token_urlsafe(12), is_admin, fun_name, picture)
+    for username, is_admin, fun_name, picture in USER_PROFILES
 ]
 
 GAMES = [

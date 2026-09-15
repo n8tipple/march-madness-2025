@@ -1,8 +1,10 @@
 __pycache__/
 *.db
+instance/
 .DS_Store
 importantcode.txt
 venv/
+secret_key.txt
 
 .env
 .env.*
