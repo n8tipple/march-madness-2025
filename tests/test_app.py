@@ -14,6 +14,7 @@ from app import (  # noqa: E402
     Pick,
     Round,
     User,
+    WALKTOBER_USERNAME_MAP,
     app,
     build_henrygd_games_by_round,
     calculate_points,
@@ -23,6 +24,7 @@ from app import (  # noqa: E402
     parse_non_negative_int,
     sync_round_matchups,
     sync_tournament_from_henrygd,
+    verify_walktober_password,
 )
 
 
@@ -35,20 +37,24 @@ class BaseTestCase(unittest.TestCase):
         db.drop_all()
         db.create_all()
         self.client = app.test_client()
+        # This app has no password store of its own (see WalktoberAuthDelegationTests
+        # for the delegation logic itself) — everywhere else, assume walktober said yes.
+        self.walktober_auth_patcher = patch("app.verify_walktober_password", return_value=True)
+        self.walktober_auth_patcher.start()
 
     def tearDown(self):
+        self.walktober_auth_patcher.stop()
         db.session.remove()
         db.drop_all()
         self.app_context.pop()
 
-    def create_user(self, username, password="password123", is_admin=False, picture="nate.png"):
+    def create_user(self, username, is_admin=False, picture="nate.png"):
         user = User(
             username=username,
             is_admin=is_admin,
             fun_name=username.title(),
             picture=picture,
         )
-        user.set_password(password)
         db.session.add(user)
         db.session.commit()
         return user
@@ -332,7 +338,8 @@ class AuthAndHomeRouteTests(BaseTestCase):
 
     def test_invalid_login_shows_message(self):
         self.create_user("nate")
-        response = self.login("nate", password="wrong", follow_redirects=True)
+        with patch("app.verify_walktober_password", return_value=False):
+            response = self.login("nate", password="wrong", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Invalid username or password", response.data)
 
@@ -341,6 +348,22 @@ class AuthAndHomeRouteTests(BaseTestCase):
         response = self.login("nate")
         self.assertEqual(response.status_code, 302)
         self.assertIn("/dashboard", response.headers["Location"])
+
+    def test_login_username_is_case_insensitive(self):
+        # march-madness usernames are capitalized ("Nate"); walktober's are
+        # lowercase ("nate"). Now that one password covers both apps, people
+        # try their walktober-style username here too — it must still work.
+        self.create_user("Nate")
+        response = self.login("nate")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/dashboard", response.headers["Location"])
+
+    def test_unknown_username_shows_invalid_message_without_calling_walktober(self):
+        with patch("app.verify_walktober_password") as mocked:
+            response = self.login("nobody-by-this-name", follow_redirects=True)
+        mocked.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Invalid username or password", response.data)
 
     def test_logout_redirects_to_home(self):
         self.create_user("nate")
@@ -692,6 +715,43 @@ class ViewAndLeaderboardRouteTests(BaseTestCase):
             self.assertIn("max-age=2592000", cache_control)
         finally:
             response.close()
+
+
+class WalktoberAuthDelegationTests(unittest.TestCase):
+    """This app stores no passwords — every login defers to walktober's auth
+    API (see app.py's WALKTOBER_USERNAME_MAP / verify_walktober_password).
+    These tests cover that HTTP contract directly, without a live walktober."""
+
+    def test_unmapped_username_returns_false_without_a_network_call(self):
+        with patch("app.urllib.request.urlopen") as mocked_urlopen:
+            self.assertFalse(verify_walktober_password("NotARealFamilyMember", "whatever"))
+        mocked_urlopen.assert_not_called()
+
+    def test_http_200_from_walktober_means_authenticated(self):
+        with patch("app.urllib.request.urlopen") as mocked_urlopen:
+            mocked_urlopen.return_value.__enter__.return_value.status = 200
+            self.assertTrue(verify_walktober_password("Nate", "correct-horse-battery-staple"))
+
+    def test_walktobers_401_means_not_authenticated(self):
+        import urllib.error
+
+        error = urllib.error.HTTPError(url="x", code=401, msg="unauthorized", hdrs=None, fp=None)
+        with patch("app.urllib.request.urlopen", side_effect=error):
+            self.assertFalse(verify_walktober_password("Nate", "wrong-password"))
+
+    def test_walktober_unreachable_fails_closed_not_open(self):
+        import urllib.error
+
+        with patch("app.urllib.request.urlopen", side_effect=urllib.error.URLError("connection refused")):
+            self.assertFalse(verify_walktober_password("Nate", "whatever"))
+
+    def test_every_march_madness_account_maps_to_a_walktober_username(self):
+        # USER_PROFILES in setup.py must stay a subset of this map, or a real
+        # family member gets seeded here with no way to ever log in.
+        from setup import USER_PROFILES
+
+        for username, _is_admin, _fun_name, _picture in USER_PROFILES:
+            self.assertIn(username, WALKTOBER_USERNAME_MAP, f"{username} has no walktober mapping")
 
 
 if __name__ == "__main__":
