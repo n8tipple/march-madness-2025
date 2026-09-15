@@ -7,9 +7,20 @@ services:
     volumes:
       - instance:/app/instance
     networks:
-      - family
+      family:
+        # Pinned deliberately. walktober's compose reserves 172.30.42.2 for Caddy
+        # and .3 for itself, and walktober trusts .2 as its proxy for client IPs.
+        # Joining without a fixed address let Docker hand this container .2 on a
+        # restart race, which both broke Caddy's own bind and would have made this
+        # app walktober's trusted proxy. Keep these three addresses distinct.
+        ipv4_address: 172.30.42.4
     expose:
       - "8000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   family:

@@ -9,6 +9,7 @@ TEST_DB_PATH = Path(tempfile.gettempdir()) / "march_madness_2026_test_suite.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
 os.environ["TOURNAMENT_YEAR"] = "2026"
 
+import app as app_module  # noqa: E402
 from app import (  # noqa: E402
     Game,
     Pick,
@@ -41,6 +42,10 @@ class BaseTestCase(unittest.TestCase):
         # for the delegation logic itself) — everywhere else, assume walktober said yes.
         self.walktober_auth_patcher = patch("app.verify_walktober_password", return_value=True)
         self.walktober_auth_patcher.start()
+        # Failed-login counters live in a module global, so a test that
+        # deliberately trips the throttle would otherwise leak a lockout into
+        # whichever test happens to run next.
+        app_module._login_failures.clear()
 
     def tearDown(self):
         self.walktober_auth_patcher.stop()
@@ -656,6 +661,7 @@ class AdminRouteTests(BaseTestCase):
 class ViewAndLeaderboardRouteTests(BaseTestCase):
     def test_leaderboard_page_loads(self):
         user = self.create_user("nate")
+        self.login(user.username)
         response = self.client.get("/leaderboard")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Leaderboard", response.data)
@@ -668,6 +674,7 @@ class ViewAndLeaderboardRouteTests(BaseTestCase):
         self.create_pick(user, game, "A")
         calculate_points(closed_round)
 
+        self.login(user.username)
         response = self.client.get("/leaderboard")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Sweet 16", response.data)
@@ -715,6 +722,63 @@ class ViewAndLeaderboardRouteTests(BaseTestCase):
             self.assertIn("max-age=2592000", cache_control)
         finally:
             response.close()
+
+
+class SecurityTests(BaseTestCase):
+    def test_leaderboard_requires_login(self):
+        # It exposes every family member's name, nickname and picks. It was
+        # briefly readable by anyone who guessed the URL.
+        response = self.client.get("/leaderboard")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login", response.headers["Location"])
+
+    def test_every_data_route_requires_login(self):
+        for path in ("/dashboard", "/pick", "/view_picks", "/bracket", "/leaderboard", "/admin"):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 302, f"{path} was reachable logged out")
+                self.assertIn("/login", response.headers["Location"])
+
+    def test_admin_routes_reject_non_admins(self):
+        user = self.create_user("nate", is_admin=False)
+        self.login(user.username)
+        for path in ("/admin", "/admin_submit_picks"):
+            with self.subTest(path=path):
+                response = self.client.get(path, follow_redirects=True)
+                self.assertIn(b"Access denied", response.data, f"{path} let a non-admin in")
+
+    def test_session_cookie_is_hardened(self):
+        self.assertTrue(app.config["SESSION_COOKIE_HTTPONLY"])
+        self.assertEqual(app.config["SESSION_COOKIE_SAMESITE"], "Lax")
+
+    def test_repeated_failures_throttle_then_recover(self):
+        self.create_user("nate")
+        with patch("app.verify_walktober_password", return_value=False):
+            for _ in range(app_module.LOGIN_MAX_ATTEMPTS):
+                self.login("nate", password="wrong")
+            response = self.login("nate", password="wrong")
+        self.assertEqual(response.status_code, 429)
+        self.assertIn(b"Too many sign-in attempts", response.data)
+
+    def test_successful_login_clears_the_throttle(self):
+        self.create_user("nate")
+        with patch("app.verify_walktober_password", return_value=False):
+            for _ in range(app_module.LOGIN_MAX_ATTEMPTS - 1):
+                self.login("nate", password="wrong")
+        # The class-level patch returns True again here.
+        self.assertEqual(self.login("nate").status_code, 302)
+        self.client.get("/logout")
+        with patch("app.verify_walktober_password", return_value=False):
+            # Counter reset, so this is failure #1 rather than a lockout.
+            response = self.login("nate", password="wrong")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Invalid username or password", response.data)
+
+    def test_throttle_reads_the_last_forwarded_address(self):
+        # Caddy appends the real peer last. Trusting the first entry would let a
+        # caller rotate a header value to reset their own throttle.
+        with app.test_request_context(headers={"X-Forwarded-For": "1.2.3.4, 9.9.9.9"}):
+            self.assertEqual(app_module.client_ip(), "9.9.9.9")
 
 
 class WalktoberAuthDelegationTests(unittest.TestCase):

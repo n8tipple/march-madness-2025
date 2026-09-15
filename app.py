@@ -1,5 +1,6 @@
 import os
 import sys
+import threading
 import uuid
 import json
 import ssl
@@ -107,6 +108,57 @@ def verify_walktober_password(username, password):
         return False
 
 
+# Every login here is forwarded to walktober from this one container, so as far
+# as walktober's own per-IP limiter is concerned the whole family shares a single
+# bucket. Without a limit of our own, one person guessing passwords would burn
+# that shared allowance and lock everyone else out of this app. Throttle locally
+# first, so walktober only ever sees plausible attempts.
+LOGIN_MAX_ATTEMPTS = int(env_value('LOGIN_MAX_ATTEMPTS', '8'))
+LOGIN_WINDOW_SECONDS = int(env_value('LOGIN_WINDOW_SECONDS', '300'))
+_login_failures = {}
+_login_failures_lock = threading.Lock()
+
+
+def client_ip():
+    # Caddy is the only way in, and it appends the true peer address as the last
+    # entry of X-Forwarded-For. Reading the first entry instead would take
+    # whatever the caller put there, letting anyone reset their own throttle.
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    if forwarded:
+        return forwarded.split(',')[-1].strip()
+    return request.remote_addr or 'unknown'
+
+
+def _prune_failures(attempts, now):
+    return [t for t in attempts if now - t < LOGIN_WINDOW_SECONDS]
+
+
+def login_is_throttled(username):
+    now = time.time()
+    key = (username.lower(), client_ip())
+    with _login_failures_lock:
+        attempts = _prune_failures(_login_failures.get(key, []), now)
+        if attempts:
+            _login_failures[key] = attempts
+        else:
+            _login_failures.pop(key, None)
+        return len(attempts) >= LOGIN_MAX_ATTEMPTS
+
+
+def record_login_failure(username):
+    now = time.time()
+    key = (username.lower(), client_ip())
+    with _login_failures_lock:
+        attempts = _prune_failures(_login_failures.get(key, []), now)
+        attempts.append(now)
+        _login_failures[key] = attempts
+
+
+def clear_login_failures(username):
+    with _login_failures_lock:
+        _login_failures.pop((username.lower(), client_ip()), None)
+
+
 try:
     app.config['TOURNAMENT_YEAR'] = int(env_value('TOURNAMENT_YEAR', '2026'))
 except ValueError:
@@ -126,6 +178,18 @@ if not secret_key:
             file=sys.stderr,
         )
 app.config['SECRET_KEY'] = secret_key
+
+# The session cookie is the whole authentication story here — anyone holding it
+# is signed in. Secure keeps it off plaintext connections and Lax keeps browsers
+# from attaching it to cross-site POSTs, which is what stands in for CSRF tokens
+# on this app's forms. Set SESSION_COOKIE_SECURE=0 for local http:// development,
+# where a Secure cookie would simply never be stored and every login would
+# appear to silently fail.
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=env_value('SESSION_COOKIE_SECURE', '1') not in ('0', 'false', 'False'),
+)
 
 
 def normalize_database_url(raw_url):
@@ -900,11 +964,17 @@ def login():
         # Case-insensitive: walktober usernames are lowercase, march-madness's
         # are capitalized, and people now use one password for both — don't
         # make them remember two different casings too.
+        if login_is_throttled(username):
+            logger.warning("Login throttled for %r from %s", username, client_ip())
+            flash('Too many sign-in attempts. Wait a few minutes and try again.', 'danger')
+            return render_template('login.html'), 429
         user = User.query.filter(db.func.lower(User.username) == username.lower()).first()
         if user and verify_walktober_password(user.username, password):
+            clear_login_failures(username)
             login_user(user)
             return redirect(url_for('dashboard'))
         else:
+            record_login_failure(username)
             flash('Invalid username or password', 'danger')
     return render_template('login.html')
 
@@ -1294,6 +1364,7 @@ def bracket():
     return render_template('bracket.html', bracket_data=bracket_data, team_info_data=ti)
 
 @app.route('/leaderboard')
+@login_required
 def leaderboard():
     users = get_users_with_points()
     ranks = []
