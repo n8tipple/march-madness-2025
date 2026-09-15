@@ -1,7 +1,6 @@
 Flask
 Flask-SQLAlchemy
 Flask-Login
-Flask-Bcrypt
 psycopg2-binary
 Flask-Caching
 certifi

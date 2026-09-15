@@ -1,6 +1,5 @@
 import json
 import os
-import secrets
 import ssl
 import sys
 import urllib.error
@@ -16,11 +15,12 @@ except ImportError:
 
 TOURNAMENT_YEAR = 2026
 
-# Passwords are generated fresh on every run, never hardcoded/committed:
-# a fixed password in source is a permanent credential leak the moment the
-# repo is pushed anywhere, public or not.
+# No passwords here — this app has no password store of its own. Every
+# username below must have a matching entry in WALKTOBER_USERNAME_MAP
+# (app.py) so login can defer to walktober's auth API.
 USER_PROFILES = [
-    ('donjune', False, 'The Don of a New June', 'don_june.png'),
+    ('Don', False, 'The Don', 'don_june.png'),
+    ('June', False, 'Jump Shot June', 'don_june.png'),
     ('Nate', True, 'Net Rippin’ Nate', 'nate.png'),
     ('Chris', True, 'Clutch Chris', 'chris.png'),
     ('Casey', True, 'Coast-to-Coast Casey', 'casey.png'),
@@ -30,10 +30,6 @@ USER_PROFILES = [
     ('Sherry', False, 'Sharp Shooter Sherry', 'sherry.png'),
     ('Tyler', False, 'Triple Threat Tyler', 'tyler.png'),
     ('Meiko', False, 'Money Meiko', 'meiko.png'),
-]
-USERS = [
-    (username, secrets.token_urlsafe(12), is_admin, fun_name, picture)
-    for username, is_admin, fun_name, picture in USER_PROFILES
 ]
 
 GAMES = [
@@ -134,11 +130,10 @@ def setup_with_sqlalchemy():
         db.drop_all()
         db.create_all()
 
-        for username, password, is_admin, fun_name, picture in USERS:
+        for username, is_admin, fun_name, picture in USER_PROFILES:
             user = User(username=username, is_admin=is_admin, fun_name=fun_name, picture=picture)
-            user.set_password(password)
             db.session.add(user)
-            print(f"User created: username={username}, password={password}, fun_name={fun_name}, picture={picture}{' (Admin)' if is_admin else ''}")
+            print(f"User created: username={username}, fun_name={fun_name}, picture={picture}{' (Admin)' if is_admin else ''}")
         db.session.commit()
 
         round1 = Round(name='First Round (Round of 64)', point_value=2, closed=False, closed_for_selection=False)
@@ -175,23 +170,20 @@ def setup_with_supabase_api():
         client.delete_all_rows(table)
 
     user_rows = []
-    for username, password, is_admin, fun_name, picture in USERS:
-        user = User(username=username, is_admin=is_admin, fun_name=fun_name, picture=picture)
-        user.set_password(password)
+    for username, is_admin, fun_name, picture in USER_PROFILES:
         user_rows.append(
             {
                 'username': username,
-                'password_hash': user.password_hash,
                 'points': 0,
                 'is_admin': is_admin,
                 'fun_name': fun_name,
                 'picture': picture,
             }
         )
-        print(f"Prepared user for Supabase: username={username}, password={password}{' (Admin)' if is_admin else ''}")
+        print(f"Prepared user for Supabase: username={username}{' (Admin)' if is_admin else ''}")
 
     inserted_users = client.request('POST', 'user', payload=user_rows)
-    if not inserted_users or len(inserted_users) != len(USERS):
+    if not inserted_users or len(inserted_users) != len(USER_PROFILES):
         raise RuntimeError("Failed to insert all users via Supabase API.")
 
     inserted_round = client.request(

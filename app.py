@@ -10,7 +10,6 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from flask import Flask, render_template, redirect, url_for, request, flash, g, has_request_context
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
-from flask_bcrypt import Bcrypt
 import logging
 import time
 from datetime import datetime, timezone
@@ -61,6 +60,51 @@ HENRYGD_DEPTH_TO_ROUND = {
     1: 'Final Four',
     0: 'Championship',
 }
+
+# Walktober is the one place family passwords live. This app has no password
+# store of its own — every login defers to walktober's auth API over the
+# internal Docker network, so a password change there takes effect here too,
+# immediately, with nothing to keep in sync.
+WALKTOBER_AUTH_URL = env_value('WALKTOBER_AUTH_URL', 'http://walktober:3000/api/auth/sign-in/username')
+WALKTOBER_AUTH_ORIGIN = env_value('WALKTOBER_AUTH_ORIGIN', 'https://walktober.whoswinningnow.online')
+WALKTOBER_USERNAME_MAP = {
+    'Nate': 'nate',
+    'Chris': 'chris',
+    'Casey': 'casey',
+    'James': 'james',
+    'Keith': 'keith',
+    'Dave': 'dave',
+    'Sherry': 'sherry',
+    'Tyler': 'tyler',
+    'Meiko': 'meiko',
+    'Don': 'don',
+    'June': 'june',
+}
+
+
+def verify_walktober_password(username, password):
+    walktober_username = WALKTOBER_USERNAME_MAP.get(username)
+    if not walktober_username:
+        return False
+    payload = json.dumps({'username': walktober_username, 'password': password}).encode('utf-8')
+    req = urllib.request.Request(
+        WALKTOBER_AUTH_URL,
+        data=payload,
+        headers={
+            'Content-Type': 'application/json',
+            'Origin': WALKTOBER_AUTH_ORIGIN,
+            'User-Agent': 'march-madness-auth/1.0',
+        },
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return response.status == 200
+    except urllib.error.HTTPError:
+        return False
+    except urllib.error.URLError as exc:
+        logger.error("Walktober auth check failed: %s", exc.reason)
+        return False
 
 
 try:
@@ -161,7 +205,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 db = SQLAlchemy(app)
-bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
@@ -221,17 +264,10 @@ def load_user(user_id):
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=False)
     points = db.Column(db.Integer, default=0)
     is_admin = db.Column(db.Boolean, default=False)
     fun_name = db.Column(db.String(100), default='')
     picture = db.Column(db.String(100), default='default.png')
-
-    def set_password(self, password):
-        self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
-
-    def check_password(self, password):
-        return bcrypt.check_password_hash(self.password_hash, password)
 
 class Round(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -862,7 +898,7 @@ def login():
         username = request.form['username']
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
+        if user and verify_walktober_password(username, password):
             login_user(user)
             return redirect(url_for('dashboard'))
         else:
