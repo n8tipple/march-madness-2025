@@ -897,8 +897,11 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-        if user and verify_walktober_password(username, password):
+        # Case-insensitive: walktober usernames are lowercase, march-madness's
+        # are capitalized, and people now use one password for both — don't
+        # make them remember two different casings too.
+        user = User.query.filter(db.func.lower(User.username) == username.lower()).first()
+        if user and verify_walktober_password(user.username, password):
             login_user(user)
             return redirect(url_for('dashboard'))
         else:
