@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    container_name: marchmadness
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - instance:/app/instance
+    networks:
+      - family
+    expose:
+      - "8000"
+
+networks:
+  family:
+    name: walktober_family
+    external: true
+
+volumes:
+  instance:
