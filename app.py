@@ -1,6 +1,5 @@
 import os
 import sys
-import threading
 import uuid
 import json
 import ssl
@@ -113,10 +112,13 @@ def verify_walktober_password(username, password):
 # bucket. Without a limit of our own, one person guessing passwords would burn
 # that shared allowance and lock everyone else out of this app. Throttle locally
 # first, so walktober only ever sees plausible attempts.
+#
+# Counters live in the database, not process memory: gunicorn runs several
+# workers and requests round-robin between them, so an in-memory counter is
+# really one counter per worker and the effective limit silently multiplies by
+# the worker count.
 LOGIN_MAX_ATTEMPTS = int(env_value('LOGIN_MAX_ATTEMPTS', '8'))
 LOGIN_WINDOW_SECONDS = int(env_value('LOGIN_WINDOW_SECONDS', '300'))
-_login_failures = {}
-_login_failures_lock = threading.Lock()
 
 
 def client_ip():
@@ -129,34 +131,34 @@ def client_ip():
     return request.remote_addr or 'unknown'
 
 
-def _prune_failures(attempts, now):
-    return [t for t in attempts if now - t < LOGIN_WINDOW_SECONDS]
+def _login_key(username):
+    return f"{username.lower()}|{client_ip()}"
 
 
 def login_is_throttled(username):
-    now = time.time()
-    key = (username.lower(), client_ip())
-    with _login_failures_lock:
-        attempts = _prune_failures(_login_failures.get(key, []), now)
-        if attempts:
-            _login_failures[key] = attempts
-        else:
-            _login_failures.pop(key, None)
-        return len(attempts) >= LOGIN_MAX_ATTEMPTS
+    cutoff = time.time() - LOGIN_WINDOW_SECONDS
+    recent = LoginAttempt.query.filter(
+        LoginAttempt.key == _login_key(username),
+        LoginAttempt.attempted_at > cutoff,
+    ).count()
+    return recent >= LOGIN_MAX_ATTEMPTS
 
 
 def record_login_failure(username):
     now = time.time()
-    key = (username.lower(), client_ip())
-    with _login_failures_lock:
-        attempts = _prune_failures(_login_failures.get(key, []), now)
-        attempts.append(now)
-        _login_failures[key] = attempts
+    db.session.add(LoginAttempt(key=_login_key(username), attempted_at=now))
+    # Opportunistic cleanup so this table can't grow without bound.
+    LoginAttempt.query.filter(
+        LoginAttempt.attempted_at < now - LOGIN_WINDOW_SECONDS
+    ).delete(synchronize_session=False)
+    db.session.commit()
 
 
 def clear_login_failures(username):
-    with _login_failures_lock:
-        _login_failures.pop((username.lower(), client_ip()), None)
+    LoginAttempt.query.filter(
+        LoginAttempt.key == _login_key(username)
+    ).delete(synchronize_session=False)
+    db.session.commit()
 
 
 try:
@@ -325,6 +327,13 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 # Models
+class LoginAttempt(db.Model):
+    """One row per failed sign-in, shared across gunicorn workers."""
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(160), nullable=False, index=True)
+    attempted_at = db.Column(db.Float, nullable=False, index=True)
+
+
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -363,6 +372,20 @@ class AppSetting(db.Model):
     __tablename__ = 'app_setting'
     key = db.Column(db.String(50), primary_key=True)
     value = db.Column(db.Text, nullable=False)
+
+
+# There is no migration runner here, and setup.py drops every table, so it can
+# never be the thing that adds a table to a live database. create_all only
+# creates what is missing and leaves existing tables untouched, which is what
+# lets a new table (login_attempt) reach an already-deployed database on a plain
+# redeploy. Workers may race to do this on boot; the loser hits a locked
+# database and the winner has already created the table, so log and continue.
+with app.app_context():
+    try:
+        db.create_all()
+    except Exception:
+        logger.exception("Schema bootstrap failed; continuing")
+
 
 # Helper Functions
 def _save_last_sync():

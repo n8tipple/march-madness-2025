@@ -12,6 +12,7 @@ os.environ["TOURNAMENT_YEAR"] = "2026"
 import app as app_module  # noqa: E402
 from app import (  # noqa: E402
     Game,
+    LoginAttempt,
     Pick,
     Round,
     User,
@@ -42,10 +43,6 @@ class BaseTestCase(unittest.TestCase):
         # for the delegation logic itself) — everywhere else, assume walktober said yes.
         self.walktober_auth_patcher = patch("app.verify_walktober_password", return_value=True)
         self.walktober_auth_patcher.start()
-        # Failed-login counters live in a module global, so a test that
-        # deliberately trips the throttle would otherwise leak a lockout into
-        # whichever test happens to run next.
-        app_module._login_failures.clear()
 
     def tearDown(self):
         self.walktober_auth_patcher.stop()
@@ -773,6 +770,16 @@ class SecurityTests(BaseTestCase):
             response = self.login("nate", password="wrong")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Invalid username or password", response.data)
+
+    def test_throttle_state_is_shared_not_per_process(self):
+        # gunicorn runs several workers and requests round-robin between them,
+        # so a counter in process memory is really one counter per worker and
+        # the real limit becomes MAX x workers. Persisting each failure is what
+        # makes the limit mean what it says.
+        self.create_user("nate")
+        with patch("app.verify_walktober_password", return_value=False):
+            self.login("nate", password="wrong")
+        self.assertEqual(LoginAttempt.query.count(), 1)
 
     def test_throttle_reads_the_last_forwarded_address(self):
         # Caddy appends the real peer last. Trusting the first entry would let a
