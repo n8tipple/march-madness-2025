@@ -30,6 +30,33 @@ Consequences worth knowing:
 - This app can't verify a login while walktober is unreachable. That's an accepted tradeoff for a private family app on one server — not a design to carry into anything with a higher availability bar.
 - Changing walktober's Better Auth config (username plugin, `trustedOrigins`, or the sign-in response's success status) can silently break login here without touching this repo. See walktober's own README for the matching note.
 
+## Security notes
+
+- **Every data route requires a login.** `/leaderboard` was briefly public,
+  which put every family member's name, nickname and picks on the open internet
+  behind a guessable URL. `SecurityTests` in `tests/test_app.py` guards this —
+  if you add a route that renders family data, add it to that list.
+- **Logins are throttled** (`LOGIN_MAX_ATTEMPTS`, default 8 per 5 minutes, keyed
+  on username + client IP). The counters live in the database on purpose:
+  gunicorn runs several workers and requests round-robin between them, so an
+  in-memory counter is really one counter per worker and the real limit becomes
+  the maximum times the worker count. The throttle also protects walktober —
+  see above, the whole family shares one bucket in its limiter.
+- The client IP is read from the **last** `X-Forwarded-For` entry, which is the
+  one Caddy appends. The first entry is whatever the caller sent, so keying on
+  it would let anyone reset their own throttle.
+- The session cookie is `HttpOnly`, `SameSite=Lax` and `Secure`. Set
+  `SESSION_COOKIE_SECURE=0` for local `http://` development, where a Secure
+  cookie is never stored and every login appears to silently fail.
+- CDN dependencies are pinned to exact versions with integrity hashes. Changing
+  one means recomputing its hash:
+  `curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A`.
+  A wrong hash fails silently in the browser, so load a page and check the
+  console after changing any of them.
+- Security headers (HSTS, `X-Frame-Options`, `X-Content-Type-Options`,
+  `Referrer-Policy`) are applied at the edge by Caddy, not here — see
+  walktober's `Caddyfile`.
+
 ## Deployment
 
 Runs as a Docker container (`Dockerfile`, `compose.yaml`) on the same server as [walktober](https://github.com/n8tipple/walktober) and [whoswinningnow](https://github.com/n8tipple/whoswinningnow), fronted by walktober's Caddy instance — see walktober's README for the shared Caddy/network setup. `compose.yaml` joins the existing `walktober_family` Docker network as an external network and only `expose`s port 8000 (Caddy is the only internet-facing process).
